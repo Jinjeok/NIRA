@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "axios": "^1.9.0",
+    "yarn": "^1.22.22"
+  },
+  "name": "nira",
+  "description": "# TODO ## 기능 관련 - [ ] BOTY 마이그레이션 - [ ] 선택 기능 추가 - [ ] 확률 선택 기능 추가 - [ ] 주가 기능 추가 - [ ] 데이터베이스에 연결 필요 - [ ] .env 에 API 키 넣어두기 - [ ]",
+  "version": "0.0.1",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jinjeok/NIRA.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Jinjeok/NIRA/issues"
+  },
+  "homepage": "https://jinjeok.github.io/NIRA/"
+}

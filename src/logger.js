@@ -12,7 +12,7 @@ if (!fs.existsSync(logDir)) {
 }
 
 const logFormat = printf(({ level, message, timestamp }) => {
-    return `<span class="math-inline">\{timestamp\} \[</span>{level.toUpperCase()}]: ${message}`; // 레벨 대문자로 표시
+    return `${timestamp} [${level.toUpperCase()}]: ${message}`; // 레벨 대문자로 표시
 });
 
 const logger = winston.createLogger({

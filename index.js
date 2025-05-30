@@ -54,7 +54,7 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-client.login(process.env.DISCORD_TOKEN)
+client.login(process.env.DISCORD_BOT_TOKEN)
     .catch(error => {
         logger.error('봇 로그인 중 오류 발생:', error);
         process.exit(1);

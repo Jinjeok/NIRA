@@ -1,5 +1,15 @@
 # Nice, Intelligent, Resourceful, Assistant.
 
+# 배포 방법
+1. `.env` 파일 작성
+2. `yarn deploy-commands`
+3. `yarn start`
+
+
+## 삭제 커맨드
+- `yarn delete-commands`
+
+
 # TODO
 ## 기능 관련
 - [ ] 개발 환경 세팅 -> 저장시 실시간 재부팅 (nodemon 등)

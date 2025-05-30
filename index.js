@@ -1,6 +1,6 @@
 // index.js
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ActivityType  } = require('discord.js');
 const logger = require('./src/logger');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -29,6 +29,7 @@ for (const file of commandFiles) {
 
 client.once('ready', () => {
     logger.info(`NIRA 봇이 준비되었습니다! ${client.user.tag}으로 로그인되었습니다.`);
+    client.user.setPresence({ activities: [{ name: "명령어 수신 대기중", type: ActivityType.Custom }], status: 'online' });
 });
 
 client.on('interactionCreate', async interaction => {

@@ -36,12 +36,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18' # 또는 프로젝트에서 사용하는 Node.js 버전
-          cache: 'npm' # 또는 yarn
+          cache: 'npm' # 또는 yarn, 프로젝트에 맞게 수정
+          cache-dependency-path: ./docs/package-lock.json # Docusaurus 프로젝트의 package-lock.json 또는 yarn.lock 경로
 
       - name: Install dependencies
+        working-directory: ./docs # Docusaurus 프로젝트 디렉토리
         run: npm ci # 또는 yarn install --frozen-lockfile
 
       - name: Build
+        working-directory: ./docs # Docusaurus 프로젝트 디렉토리
         run: npm run build # 또는 yarn build
 
       # GitHub Pages 액션을 사용하여 배포합니다.
@@ -51,7 +54,7 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+          publish_dir: ./docs/build # Docusaurus 빌드 출력 디렉토리 (루트에서 docs/build)
           # cname: your-custom-domain.com # 사용자 정의 도메인이 있다면 주석 해제
 
       # Docusaurus 자체 배포 명령어를 사용하는 방법 (위의 peaceiris/actions-gh-pages 대신 사용 가능)

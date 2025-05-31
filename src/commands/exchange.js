@@ -48,7 +48,7 @@ module.exports = {
           value: `• ${amt} ${base} = ${converted.toLocaleString()} ${target}`
         })
         .setFooter({ text: `${res.data[0].date} 기준`, iconURL: interaction.client.user.displayAvatarURL() })
-        .setColor(0x3498DB)
+        .setColor(0xEE82EE)
         .setTimestamp();
 
       await interaction.reply({ embeds: [embed] });

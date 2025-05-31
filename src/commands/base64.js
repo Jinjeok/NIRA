@@ -3,7 +3,7 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('base64')
-    .setDescription('Base64 인코딩/디코딩')
+    .setDescription('Base64 코드/평문 을(를) 인코딩/디코딩 합니다.')
     .addStringOption(o =>
       o.setName('모드')
        .setDescription('인코딩(e) 또는 디코딩(d)')

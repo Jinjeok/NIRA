@@ -10,7 +10,7 @@ module.exports = {
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setColor(0x3498DB)  // 3447003(decimal) === 0x3498DB(hex)
+      .setColor(0xEE82EE)
       .setTitle('서버 정보')
       .setDescription(
         `서버 이름 : ${interaction.guild.name}\n` +

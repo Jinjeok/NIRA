@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('현재 시각 표시')
     .addIntegerOption(o =>
       o.setName('시차')
-       .setDescription('±시간 (정수) | 참고: PST = -16, UTC = -9')
+       .setDescription('±시간 (정수) | KST기준 PST = -16, UTC = -9')
        .setRequired(false)
     ),
 

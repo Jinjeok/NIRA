@@ -5,13 +5,13 @@ module.exports = {
     .setName('계산')
     .setDescription('수식을 계산합니다.')
     .addStringOption(o =>
-      o.setName('expression')
+      o.setName('수식')
        .setDescription('계산할 식')
        .setRequired(true)
     ),
 
   async execute(interaction) {
-    const expr = interaction.options.getString('expression');
+    const expr = interaction.options.getString('수식');
     try {
       const result = eval(expr);
       if (result === undefined) throw new Error('올바른 수식을 입력하세요');

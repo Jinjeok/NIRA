@@ -18,7 +18,7 @@ module.exports = {
   async execute(interaction) {
     const input = interaction.options.getString('input');
     const embed = new EmbedBuilder()
-      .setColor(0x3498DB);
+      .setColor(0xEE82EE);
 
     if (!input) {
       embed.setDescription('선택지에 놓인 게 없나봐요!');

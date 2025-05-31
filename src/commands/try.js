@@ -36,7 +36,7 @@ module.exports = {
         `성공: ${success}회\n` +
         `성공률: ${(success / n * 100).toFixed(2)}%`
       )
-      .setColor(0x3498DB)
+      .setColor(0xEE82EE)
       .setTimestamp()
       .setFooter({ text: '명령어 입력 시간', iconURL: interaction.client.user.displayAvatarURL() });
 

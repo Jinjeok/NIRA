@@ -21,7 +21,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setTitle('소비세 계산')
-      .setColor(0x3498DB)
+      .setColor(0xEE82EE)
       .addFields(
         {
           name: '10%',

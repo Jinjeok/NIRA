@@ -33,6 +33,6 @@ module.exports = {
         await interaction.reply({ embeds: [resultEmbed] });
 
         //await interaction.reply(`\`.\`선택 **${items}** \n**${selectedItem}**`);
-        logger.info(`'/선택' 명령어가 실행되었습니다. 입력: ${itemsString}, 선택 결과\: ${selectedItem});
+        logger.info(`'/선택' 명령어가 실행되었습니다. 입력: ${itemsString}, 선택 결과\: ${selectedItem}`);
     },
 };

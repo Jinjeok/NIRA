@@ -13,9 +13,6 @@ module.exports = {
   async execute(interaction) {
     const cnt = interaction.options.getInteger('amount');
     await interaction.channel.bulkDelete(cnt, true);
-    await interaction.reply({ content: `${cnt}개의 메시지를 삭제했습니다.`, ephemeral: true });
+    await interaction.reply({ content: `${cnt}개의 메시지를 삭제했습니다.` });
   },
 };
-
-// 권한 문제로 인해 안됨
-//미완. 마이그레이션 완료 시 해당 주석을 삭제하세요

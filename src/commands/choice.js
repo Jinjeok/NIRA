@@ -1,5 +1,5 @@
 // src/commands/선택.js
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -15,7 +15,7 @@ module.exports = {
         const items = itemsString.split(',').map(item => item.trim()).filter(item => item !== '');
 
         if (items.length === 0) {
-            await interaction.reply({ content: '선택할 항목이 없습니다. 쉼표로 구분하여 입력해주세요.', ephemeral: true });
+            await interaction.reply({ content: '선택할 항목이 없습니다. 쉼표로 구분하여 입력해주세요.', flags: MessageFlags.Ephemeral });
             logger.warn(`사용자가 '/선택' 명령어로 항목 없이 호출했습니다. 입력: "${itemsString}"`);
             return;
         }
@@ -32,7 +32,5 @@ module.exports = {
 
         await interaction.reply({ embeds: [resultEmbed] });
 
-        //await interaction.reply(`\`.\`선택 **${items}** \n**${selectedItem}**`);
-        logger.info(`'/선택' 명령어가 실행되었습니다. 입력: ${itemsString}, 선택 결과\: ${selectedItem}`);
     },
 };

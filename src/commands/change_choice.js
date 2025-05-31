@@ -1,5 +1,5 @@
 // src/commands/확률선택.js
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const logger = require('../logger'); // logger 모듈을 가져옵니다.
 
 module.exports = {
@@ -25,13 +25,13 @@ module.exports = {
 
         // 1. 항목과 확률의 개수가 일치하는지 확인
         if (items.length === 0 || probabilities.length === 0) {
-            await interaction.reply({ content: '선택할 항목이나 확률이 없습니다. 올바르게 입력해주세요.', ephemeral: true });
+            await interaction.reply({ content: '선택할 항목이나 확률이 없습니다. 올바르게 입력해주세요.', flags: MessageFlags.Ephemeral });
             logger.warn(`사용자가 확률선택 명령어를 항목/확률 없이 호출했습니다. 항목: "${itemsString}", 확률: "${probabilitiesString}"`);
             return;
         }
 
         if (items.length !== probabilities.length) {
-            await interaction.reply({ content: '항목의 개수와 확률의 개수가 일치하지 않습니다. 다시 확인해주세요.', ephemeral: true });
+            await interaction.reply({ content: '항목의 개수와 확률의 개수가 일치하지 않습니다. 다시 확인해주세요.', flags: MessageFlags.Ephemeral });
             logger.warn(`확률선택 - 항목/확률 개수 불일치. 항목 수: ${items.length}, 확률 수: ${probabilities.length}`);
             return;
         }
@@ -39,7 +39,7 @@ module.exports = {
         // 2. 확률의 합이 100인지 확인
         const totalProbability = probabilities.reduce((sum, current) => sum + current, 0);
         if (totalProbability !== 100) {
-            await interaction.reply({ content: `확률의 총합이 100이 아닙니다. 현재 총합: ${totalProbability}. 다시 확인해주세요.`, ephemeral: true });
+            await interaction.reply({ content: `확률의 총합이 100이 아닙니다. 현재 총합: ${totalProbability}. 다시 확인해주세요.`, flags: MessageFlags.Ephemeral });
             logger.warn(`확률선택 - 확률 총합 불일치. 총합: ${totalProbability}`);
             return;
         }
@@ -64,6 +64,5 @@ module.exports = {
             .setFooter({ text: '확률에 따라 공정하게 선택되었습니다.' });
 
         await interaction.reply({ embeds: [resultEmbed] });
-        logger.info(`'/확률선택' 명령어가 실행되었습니다. 항목: "${itemsString}", 확률: "${probabilitiesString}", 선택 결과: "${selectedItem}"`);
     },
 };

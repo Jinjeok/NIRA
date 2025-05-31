@@ -5,17 +5,15 @@ module.exports = {
     .setName('나이')
     .setDescription('세는 나이 계산 (YYYY)')
     .addIntegerOption(o =>
-      o.setName('year')
+      o.setName('년도')
        .setDescription('출생 연도 (YYYY)')
        .setRequired(true)
     ),
 
   async execute(interaction) {
-    const birthYear = interaction.options.getInteger('year');
+    const birthYear = interaction.options.getInteger('년도');
     const currentYear = new Date().getFullYear();
-    await interaction.reply(`나이: ${currentYear - birthYear + 1}`);
+    await interaction.reply(`**${birthYear}**년생의 세는나이: **${currentYear - birthYear + 1}** 세`);
   },
 };
 
-
-//미완. 마이그레이션 완료 시 해당 주석을 삭제하세요

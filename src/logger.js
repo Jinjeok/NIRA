@@ -1,6 +1,7 @@
 const winston = require('winston');
 const { combine, timestamp, printf, colorize } = winston.format;
 const path = require('node:path'); // path 모듈 추가
+require('winston-daily-rotate-file'); // DailyRotateFile 트랜스포트 추가
 const fs = require('node:fs'); // fs 모듈 추가
 
 // 로그 파일을 저장할 폴더 경로
@@ -30,9 +31,23 @@ const logger = winston.createLogger({
                 logFormat
             ),
         }),
-        // 파일에 로그 저장
-        new winston.transports.File({ filename: path.join(logDir, 'error.log'), level: 'error' }),
-        new winston.transports.File({ filename: path.join(logDir, 'combined.log') }),
+        // 오류 로그 파일 (매일 로테이션, 7일 보관)
+        new winston.transports.DailyRotateFile({
+            level: 'error',
+            filename: path.join(logDir, 'error-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            zippedArchive: true, // 오래된 로그 압축
+            maxSize: '20m',      // 개별 파일 최대 크기
+            maxFiles: '7d',      // 7일간 보관 후 자동 삭제
+        }),
+        // 모든 레벨 로그 파일 (매일 로테이션, 7일 보관)
+        new winston.transports.DailyRotateFile({
+            filename: path.join(logDir, 'combined-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            zippedArchive: true,
+            maxSize: '20m',
+            maxFiles: '7d',
+        }),
     ],
 });
 

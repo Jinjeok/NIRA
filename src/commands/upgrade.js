@@ -29,8 +29,6 @@ module.exports = {
           .setTitle('강화 성공!')
           .setDescription(`총 ${i.toLocaleString()}번 만에 성공\n최종확률: ${p + inc * (i - 1)}%`)
           .setColor(0xEE82EE)
-          .setTimestamp()
-          .setFooter({ text: '명령어 입력 시간', iconURL: interaction.client.user.displayAvatarURL() });
 
         return interaction.reply({ embeds: [embed] });
       }

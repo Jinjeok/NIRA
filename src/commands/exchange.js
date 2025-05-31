@@ -1,11 +1,11 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, MessageFlags } = require('discord.js');
 const axios = require('axios');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('환율')
-    .setDescription('환율을 조회하고 환산해 줍니다.')
+    .setDescription('환율을 조회하고 환산합니다.')
     .addStringOption(opt =>
       opt.setName('pair')
          .setDescription('환산할 통화 쌍을 선택하세요.')
@@ -53,7 +53,7 @@ module.exports = {
 
       await interaction.reply({ embeds: [embed] });
     } catch (err) {
-      await interaction.reply({ content: `Error: ${err.message}`, ephemeral: true });
+      await interaction.reply({ content: `Error: ${err.message}`, flags: MessageFlags.Ephemeral });
     }
   },
 };

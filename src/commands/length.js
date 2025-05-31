@@ -3,18 +3,15 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('길이')
-    .setDescription('문자열 길이를 리턴')
+    .setDescription('입력 문자열의 길이를 측정합니다.')
     .addStringOption(o =>
-      o.setName('content')
+      o.setName('문자열')
        .setDescription('측정할 문자열')
        .setRequired(true)
     ),
 
   async execute(interaction) {
-    const str = interaction.options.getString('content');
+    const str = interaction.options.getString('문자열');
     await interaction.reply(String(str.length));
   },
 };
-
-
-//미완. 마이그레이션 완료 시 해당 주석을 삭제하세요

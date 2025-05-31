@@ -15,6 +15,3 @@ module.exports = {
     await interaction.reply(str.split('').reverse().join(''));
   },
 };
-
-
-//미완. 마이그레이션 완료 시 해당 주석을 삭제하세요

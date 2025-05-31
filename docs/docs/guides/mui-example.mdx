@@ -1,0 +1,40 @@
+---
+title: MUI 컴포넌트 활용 가이드
+sidebar_label: MUI 카드 예제
+description: Docusaurus와 Material-UI를 결합하여 멋진 카드 컴포넌트를 사용하는 예제입니다.
+slug: /guides/mui-example
+---
+
+import MyStyledCard from '@site/src/components/MyStyledCard';
+import Grid from '@mui/material/Grid';
+
+# Material-UI 컴포넌트 활용 예제
+
+Docusaurus와 Material-UI를 함께 사용하면 이렇게 멋진 카드 컴포넌트를 문서에 쉽게 추가할 수 있습니다.
+
+<Grid container spacing={2} sx={{ paddingY: 2 }}>
+  <Grid item xs={12} sm={6} md={4}>
+    <MyStyledCard
+      title="핵심 기능 소개"
+      description="우리 프로젝트의 가장 중요한 핵심 기능을 소개합니다. 사용 방법을 자세히 알아보세요."
+      imageUrl="https://via.placeholder.com/345x140.png?text=Core+Feature"
+      link="../intro"
+    />
+  </Grid>
+  <Grid item xs={12} sm={6} md={4}>
+    <MyStyledCard
+      title="최신 업데이트"
+      description="최근 릴리즈된 v2.0의 새로운 기능들과 개선 사항들을 확인해보세요."
+      imageUrl="https://via.placeholder.com/345x140.png?text=Latest+Update"
+    />
+  </Grid>
+  <Grid item xs={12} sm={6} md={4}>
+    <MyStyledCard
+      title="튜토리얼 시작하기"
+      description="단계별 튜토리얼을 따라하며 빠르게 프로젝트 사용법을 익힐 수 있습니다."
+      imageUrl="https://via.placeholder.com/345x140.png?text=Tutorial"
+    />
+  </Grid>
+</Grid>
+
+더 많은 MUI 컴포넌트를 활용하여 문서를 풍부하게 만들어보세요!

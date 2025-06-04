@@ -14,13 +14,13 @@ module.exports = {
 
   async execute(interaction) {
     const probabilities = [
-      { rank: 1, count: 1, description: '1등 (0.01%)' },
-      { rank: 2, count: 10, description: '2등 (0.1%)' },
-      { rank: 3, count: 100, description: '3등 (1%)' },
-      { rank: 4, count: 500, description: '4등 (5%)' },
-      { rank: 5, count: 1000, description: '5등 (10%)' },
-      { rank: 6, count: 8389, description: '6등 (83.89%)' },
-    ];
+      { rank: 1, count: 2, description: '1등' },     // 0.02%
+      { rank: 2, count: 20, description: '2등' },    // 0.2%
+      { rank: 3, count: 150, description: '3등' },   // 1.5%
+      { rank: 4, count: 700, description: '4등' },   // 7%
+      { rank: 5, count: 1500, description: '5등' },  // 15%
+      { rank: 6, count: 7628, description: '6등' },  // 76.28%
+    ]; // Total: 10000 tickets
 
     const totalTickets = probabilities.reduce((sum, p) => sum + p.count, 0);
     const showProbabilityTableOnly = interaction.options.getBoolean('확률표보기') ?? false;
@@ -43,12 +43,20 @@ module.exports = {
         }
       });
 
-      const result = _.sample(lottoPool);
+      const results = [];
+      for (let i = 0; i < 5; i++) { // 기본 5회 뽑기
+        results.push(_.sample(lottoPool));
+      }
 
       const embed = new EmbedBuilder()
         .setColor(0xEE82EE) // 보라색 계열
-        .setTitle('스크래치 복권')
-        .setDescription(`🎉 축하합니다! **||${result}등||**에 당첨되셨습니다! 🎉`)
+        .setTitle('스크래치 복권 (5회)')
+        .setDescription('🎉 복권 결과입니다! 각 결과를 확인해보세요. 🎉')
+        .setFooter({ text: '결과를 확인하려면 메시지를 클릭(터치)하세요.' });
+
+      results.forEach((result, index) => {
+        embed.addFields({ name: `${index + 1}번째 복권`, value: `**||${result}등||**`, inline: true });
+      });
 
       await interaction.reply({ embeds: [embed] });
     }

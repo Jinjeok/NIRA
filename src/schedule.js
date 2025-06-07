@@ -4,8 +4,8 @@ const logger = require('./logger');
 // 각 스케줄 작업 파일에서 설정과 함수를 가져옵니다.
 const dailyNewsTask = require('./schedule/dailyNewsSender');
 
-// 추가적인 스케줄 작업이 있다면 여기에 import 합니다.
-// const anotherScheduledTask = require('./schedule/anotherTask');
+// 스플래툰 스케줄 작업 가져오기
+const splatoonTask = require('./schedule/splatoonSchedule');
 
 function initScheduler(client) {
     // --- Daily News Task ---
@@ -26,17 +26,25 @@ function initScheduler(client) {
         logger.warn('[Scheduler] DailyNewsTask를 위한 설정(CRON_EXPRESSION) 또는 함수(sendNews)가 dailyNewsSender.js에 정의되지 않았습니다.');
     }
 
-    // --- 다른 스케줄 작업 등록 (예시) ---
-    // if (anotherScheduledTask && anotherScheduledTask.CRON_EXPRESSION && anotherScheduledTask.executeTask) {
-    //     if (cron.validate(anotherScheduledTask.CRON_EXPRESSION)) {
-    //         logger.info(`[Scheduler] AnotherScheduledTask가 CRON 표현식 '${anotherScheduledTask.CRON_EXPRESSION}'으로 설정되었습니다.`);
-    //         cron.schedule(anotherScheduledTask.CRON_EXPRESSION, () => {
-    //             anotherScheduledTask.executeTask(client);
-    //         }, { timezone: "Asia/Seoul" });
-    //     } else {
-    //         logger.error(`[Scheduler] AnotherScheduledTask의 CRON 표현식이 유효하지 않습니다: ${anotherScheduledTask.CRON_EXPRESSION}`);
-    //     }
-    // }
+    // --- Splatoon Schedule Task ---
+    if (splatoonTask && splatoonTask.CRON_EXPRESSION && splatoonTask.sendSplatoonSchedule) {
+        if (!cron.validate(splatoonTask.CRON_EXPRESSION)) {
+            logger.error(`[Scheduler] SplatoonTask의 CRON 표현식이 유효하지 않습니다: ${splatoonTask.CRON_EXPRESSION}`);
+        } else {
+            logger.info(`[Scheduler] SplatoonTask가 CRON 표현식 '${splatoonTask.CRON_EXPRESSION}' (Asia/Seoul 타임존)으로 설정되었습니다.`);
+            // 봇이 준비된 후 첫 실행은 즉시, 그 후로는 스케줄에 따라 실행
+            splatoonTask.sendSplatoonSchedule(client); // 초기 실행
+            cron.schedule(splatoonTask.CRON_EXPRESSION, () => {
+                logger.info(`[Scheduler] SplatoonTask 실행: ${new Date().toLocaleString()}`);
+                splatoonTask.sendSplatoonSchedule(client);
+            }, {
+                scheduled: true,
+                timezone: "Asia/Seoul"
+            });
+        }
+    } else {
+        logger.warn('[Scheduler] SplatoonTask를 위한 설정(CRON_EXPRESSION) 또는 함수(sendSplatoonSchedule)가 splatoonSchedule.js에 정의되지 않았습니다.');
+    }
 }
 
 module.exports = { initScheduler };

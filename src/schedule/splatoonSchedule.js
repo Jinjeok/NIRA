@@ -15,8 +15,8 @@ const CRON_EXPRESSION = '1 1,3,5,7,9,11,13,15,17,19,21,23 * * *'; // 매 홀수 
 const messageIdStorePath = path.join(__dirname, '..', '..', 'temp', 'messageIdStore.json');
 const MESSAGE_KEY_PREFIX = 'splatoonSchedule_'; // 메시지 ID 저장 시 사용할 키 접두사
 
-async function getMessageId(channelIdentifierKey = 'default') {
-    const key = `${MESSAGE_KEY_PREFIX}${channelIdentifierKey}`;
+async function getMessageId(key) { // channelIdentifierKey 대신 직접 생성된 key를 받도록 수정
+    // const key = `${MESSAGE_KEY_PREFIX}${channelIdentifierKey}`; // 이 부분 제거
     try {
         const data = await fs.readFile(messageIdStorePath, 'utf8');
         const store = JSON.parse(data);
@@ -47,8 +47,8 @@ async function getMessageId(channelIdentifierKey = 'default') {
     }
 }
 
-async function setMessageId(id, channelIdentifierKey = 'default') {
-    const key = `${MESSAGE_KEY_PREFIX}${channelIdentifierKey}`;
+async function setMessageId(id, key) { // channelIdentifierKey 대신 직접 생성된 key를 받도록 수정
+    // const key = `${MESSAGE_KEY_PREFIX}${channelIdentifierKey}`; // 이 부분 제거
     try {
         let store = {};
         try {

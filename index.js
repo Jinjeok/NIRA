@@ -4,6 +4,7 @@ const { Client, GatewayIntentBits, Collection, ActivityType  } = require('discor
 const logger = require('./src/logger');
 const fs = require('node:fs');
 const path = require('node:path');
+const scheduler = require('./src/schedule'); // 스케줄러 모듈 가져오기
 
 const client = new Client({
     intents: [
@@ -30,6 +31,7 @@ for (const file of commandFiles) {
 client.once('ready', () => {
     logger.info(`NIRA 봇이 준비되었습니다! ${client.user.tag}으로 로그인되었습니다.`);
     client.user.setPresence({ activities: [{ name: "명령어 수신 대기중", type: ActivityType.Custom }], status: 'online' });
+    scheduler.initScheduler(client); // 스케줄러 초기화
 });
 
 client.on('interactionCreate', async interaction => {

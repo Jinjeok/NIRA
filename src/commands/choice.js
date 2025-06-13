@@ -1,7 +1,7 @@
 // src/commands/선택.js
-const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('선택')
         .setDescription('여러 항목 중 하나를 랜덤으로 선택해줍니다.')

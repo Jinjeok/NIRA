@@ -1,11 +1,11 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder, MessageFlags } = require('discord.js');
-const { create, all } = require('mathjs'); // mathjs import
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder, MessageFlags } from 'discord.js';
+import { create, all } from 'mathjs'; // mathjs import
 
 // mathjs 인스턴스 생성 (필요한 함수만 선택적으로 로드할 수도 있습니다)
 const math = create(all);
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('계산')
     .setDescription('수식을 계산합니다.')

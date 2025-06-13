@@ -1,9 +1,13 @@
-const axios = require('axios');
-const { EmbedBuilder } = require('discord.js'); // WebhookClient는 사용하지 않으므로 제거
-const fs = require('fs').promises;
-const path = require('path');
-const logger = require('../logger');
+import axios from 'axios';
+import { EmbedBuilder } from 'discord.js'; // WebhookClient는 사용하지 않으므로 제거
+import fs from 'fs/promises';
+import path from 'path';
+import logger from '../logger.js'; // .js 확장자 추가 및 import로 변경
+import { fileURLToPath } from 'node:url'; // __dirname 대체용
 
+// ES 모듈에서 __dirname을 사용하기 위한 설정
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // --- Splatoon Schedule Configuration ---
 // SEND_MODE는 "channel"로 고정됩니다.
 // WEBHOOK_URL은 더 이상 사용되지 않습니다.
@@ -304,7 +308,7 @@ async function sendSplatoonSchedule(client) {
      }
 }
 
-module.exports = {
+export default {
     sendSplatoonSchedule,
     CRON_EXPRESSION,
 };

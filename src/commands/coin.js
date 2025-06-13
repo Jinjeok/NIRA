@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require('discord.js');
-const axios = require('axios');
-const moment = require('moment');
-require('moment/locale/ko');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder } from 'discord.js';
+import axios from 'axios';
+import moment from 'moment';
+import 'moment/locale/ko.js';
 
 const coinMap = {
   '비트코인':'BTC','이더리움':'ETH','리플':'XRP','이오스':'EOS',
@@ -10,7 +10,7 @@ const coinMap = {
   // 필요에 따라 여기에 더 많은 코인을 추가할 수 있습니다.
 };
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('코인')
     .setDescription('빗썸 코인 시세 조회')

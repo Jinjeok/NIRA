@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require('discord.js');
-const _ = require('lodash');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder } from 'discord.js';
+import _ from 'lodash';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('강화')
     .setDescription('강화 시뮬레이션')

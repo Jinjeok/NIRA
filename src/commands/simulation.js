@@ -1,6 +1,6 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const _ = require('lodash');
-const { EmbedBuilder, MessageFlags } = require('discord.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import _ from 'lodash';
+import { EmbedBuilder, MessageFlags } from 'discord.js';
 
 /**
  * 숫자의 실제 소수점 이하 자릿수를 계산합니다. 지수 표기법을 고려합니다.
@@ -24,7 +24,7 @@ function countDecimalPlaces(num) {
     return 0;
 }
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('확률')
     .setDescription('입력된 확률이 몇번만에 성공하는지 확인합니다.')

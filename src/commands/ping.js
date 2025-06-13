@@ -1,7 +1,7 @@
 // commands/ping.js
-const { SlashCommandBuilder } = require('discord.js');
+import { SlashCommandBuilder } from 'discord.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('핑')
         .setDescription('NIRA 봇이 살아있는지 확인합니다.'),

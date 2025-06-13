@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "@google/genai": "^1.5.0",
     "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.12.1",
     "axios": "^1.9.0",
     "discord.js": "^14.19.3",
     "dotenv": "^16.5.0",
@@ -17,6 +19,7 @@
   "description": "# TODO ## 기능 관련 - [ ] BOTY 마이그레이션 - [ ] 선택 기능 추가 - [ ] 확률 선택 기능 추가 - [ ] 주가 기능 추가 - [ ] 데이터베이스에 연결 필요 - [ ] .env 에 API 키 넣어두기 - [ ]",
   "version": "0.0.1",
   "main": "index.js",
+  "type": "module",
   "directories": {
     "doc": "docs"
   },

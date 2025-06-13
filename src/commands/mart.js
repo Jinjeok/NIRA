@@ -1,6 +1,6 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require('discord.js');
-const moment = require('moment');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder } from 'discord.js';
+import moment from 'moment';
 
 // Helper function to get information about the day, including Nth Sunday if applicable.
 // Returns an object: { isSunday: boolean, nth: number (1-5 if Sunday, 0 otherwise), dayName: string }
@@ -33,7 +33,7 @@ function getWeekOfMonth(dateMoment) {
   return Math.ceil((dayOfMonth + firstDayOfWeekInMonth) / 7);
 }
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('마트휴무일')
     .setDescription('오늘의 마트 의무휴업일 정보를 확인합니다. (매월 2, 4번째 일요일 기준)'),

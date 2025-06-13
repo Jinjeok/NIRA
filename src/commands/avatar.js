@@ -1,8 +1,8 @@
 // ./commands/아바타.js
 
-const { SlashCommandBuilder } = require('@discordjs/builders');
+import { SlashCommandBuilder } from '@discordjs/builders';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('아바타')
     .setDescription('본인의 아바타를 출력합니다.'),

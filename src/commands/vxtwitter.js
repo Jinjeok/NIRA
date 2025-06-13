@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder, MessageFlags } = require('discord.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder, MessageFlags } from 'discord.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('트위터')
     .setDescription('X 또는 Twitter 링크를 vxtwitter 링크로 변환합니다.')

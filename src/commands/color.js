@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require('discord.js');
-const _ = require('lodash');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder } from 'discord.js';
+import _ from 'lodash';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('컬러')
     .setDescription('랜덤 또는 지정된 색을 출력합니다.')
@@ -35,4 +35,3 @@ module.exports = {
     await interaction.reply({ embeds: [embed] });
   },
 };
-

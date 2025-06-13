@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+import { SlashCommandBuilder } from '@discordjs/builders';
 
 // 오브젝트-키 형식으로 목록 관리
 // 키: 옵션 선택 시 사용될 값 및 사용자에게 보여질 이름
@@ -29,7 +29,7 @@ const longItems = {
   // "1557": "1557은 T1과 관련된 유명한 숫자입니다...",
 };
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('그긴거')
     .setDescription('그 긴거 목록에서 특정 항목을 선택하여 보거나 전체 목록을 봅니다.')

@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const Parser = require('rss-parser');
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import Parser from 'rss-parser';
 const parser = new Parser();
-const logger = require('../logger'); // 로거가 있다면 사용
+import logger from '../logger.js'; // 로거가 있다면 사용
 
 // 뉴스레터 피드 목록 (오브젝트-키 형식)
 // 키: 사용자에게 보여질 선택지 이름
@@ -18,7 +18,7 @@ const newsletterFeeds = {
 };
 
 // 뉴스 Embed 생성 로직을 별도 함수로 분리
-async function fetchNewsEmbed(selectedCategory) {
+export async function fetchNewsEmbed(selectedCategory) {
   const rssUrl = newsletterFeeds[selectedCategory];
 
   if (!rssUrl) {
@@ -67,7 +67,7 @@ async function fetchNewsEmbed(selectedCategory) {
   }
 }
 
-module.exports = {
+export default  {
   data: new SlashCommandBuilder()
     .setName('뉴스레터') // 명령어 이름 변경
     .setDescription('선택한 종류의 뉴스레터를 가져와 보여줍니다.')

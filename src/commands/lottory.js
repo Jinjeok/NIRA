@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder, MessageFlags } = require('discord.js');
-const _ = require('lodash');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder, MessageFlags } from 'discord.js';
+import _ from 'lodash';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('복권')
     .setDescription('로또 등수를 랜덤으로 뽑거나 확률표를 보여줍니다.')

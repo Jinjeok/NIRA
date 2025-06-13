@@ -1,5 +1,5 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const _ = require('lodash');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import _ from 'lodash';
 
 
 const nihongo = [
@@ -11,7 +11,7 @@ const nihongo = [
   'メ','モ','ヤ','ユ','ヨ','ラ','リ','ル','レ','ロ','ワ','ヰ','ヲ','ン'
 ]
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('문자열')
     .setDescription('랜덤 영어 / 한국어 / 일본어 문자열을 생성합니다.')

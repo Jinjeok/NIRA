@@ -1,27 +1,36 @@
-require('dotenv').config();
-const { REST, Routes } = require('discord.js');
-const fs = require('node:fs');
-const path = require('node:path');
-const logger = require('./src/logger');
+import 'dotenv/config'
+import { REST, Routes } from 'discord.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import logger from './src/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const commands = [];
 // commands 폴더의 경로를 src/commands로 변경합니다.
 const commandsPath = path.join(__dirname, 'src', 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    if ('data' in command) {
-        commands.push(command.data.toJSON());
-    } else {
-        logger.warn(`[경고] ${filePath}에 'data' 속성이 없습니다.`);
-    }
-}
-
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN);
 
 (async () => {
+    for (const file of commandFiles) {
+        const filePath = path.join(commandsPath, file);
+        try {
+            const commandModule = await import(pathToFileURL(filePath).href);
+            const command = commandModule.default || commandModule; // ES 모듈의 default export를 사용한다고 가정
+            if (command && 'data' in command) {
+                commands.push(command.data.toJSON());
+            } else {
+                logger.warn(`[경고] ${filePath} 에 'data' 속성이 없습니다.`);
+            }
+        } catch (error) {
+            logger.error(`Error loading command for deployment ${file}:`, error);
+        }
+    }
+
     try {
         logger.info(`총 ${commands.length}개의 (/) 커맨드를 새로고침합니다.`);
 

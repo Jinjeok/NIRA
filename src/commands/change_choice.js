@@ -1,8 +1,8 @@
 // src/commands/확률선택.js
-const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
-const logger = require('../logger'); // logger 모듈을 가져옵니다.
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import logger from '../logger.js'; // logger 모듈을 가져옵니다.
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('확률선택')
         .setDescription('항목별 확률에 따라 하나를 선택해줍니다.')

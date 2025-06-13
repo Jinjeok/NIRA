@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const _ = require('lodash');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import _ from 'lodash';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('오미쿠지')
     .setDescription('운세를 테스트해볼 수 있습니다.'),

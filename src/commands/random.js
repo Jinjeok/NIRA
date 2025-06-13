@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const _ = require('lodash');
-const { EmbedBuilder } = require('discord.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import _ from 'lodash';
+import { EmbedBuilder } from 'discord.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('랜덤')
     .setDescription('지정된 숫자 사이의 랜덤한 값을 출력합니다')

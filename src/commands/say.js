@@ -1,6 +1,6 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+import { SlashCommandBuilder } from '@discordjs/builders';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('말')
     .setDescription('메시지를 NIRA가 대신 보냅니다.')
@@ -15,4 +15,3 @@ module.exports = {
     await interaction.reply({ content, ephemeral: false });
   },
 };
-

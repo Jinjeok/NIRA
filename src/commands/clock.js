@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const moment = require('moment');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import moment from 'moment';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('시계')
     .setDescription('현재 시각 표시')

@@ -1,8 +1,8 @@
-const winston = require('winston');
+import winston from 'winston';
 const { combine, timestamp, printf, colorize } = winston.format;
-const path = require('node:path'); // path 모듈 추가
-require('winston-daily-rotate-file'); // DailyRotateFile 트랜스포트 추가
-const fs = require('node:fs'); // fs 모듈 추가
+import path from 'node:path'; // path 모듈 추가
+import 'winston-daily-rotate-file'; // DailyRotateFile 트랜스포트 추가
+import fs from 'node:fs'; // fs 모듈 추가
 
 // 로그 파일을 저장할 폴더 경로
 const logDir = 'logs';
@@ -51,4 +51,4 @@ const logger = winston.createLogger({
     ],
 });
 
-module.exports = logger;
+export default logger;

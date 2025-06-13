@@ -1,8 +1,8 @@
 // d:/Users/KHM/OneDrive/Documents/dev/NIRA/src/commands/주식.js
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { searchStock } = require('../utils/stock_search'); // stock.js 파일의 상대 경로를 새 위치로 변경
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { searchStock } from '../utils/stock_search.js'; // stock.js 파일의 상대 경로를 새 위치로 변경
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('주식')
         .setDescription('지정한 종목의 현재 주식 정보를 검색합니다.')

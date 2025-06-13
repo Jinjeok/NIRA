@@ -1,11 +1,11 @@
-const cron = require('node-cron');
-const logger = require('./logger');
+import cron from 'node-cron';
+import logger from './logger.js';
 
 // 각 스케줄 작업 파일에서 설정과 함수를 가져옵니다.
-const dailyNewsTask = require('./schedule/dailyNewsSender');
+import dailyNewsTask from './schedule/dailyNewsSender.js';
 
 // 스플래툰 스케줄 작업 가져오기
-const splatoonTask = require('./schedule/splatoonSchedule');
+import splatoonTask from './schedule/splatoonSchedule.js';
 
 function initScheduler(client) {
     // --- Daily News Task ---
@@ -47,4 +47,4 @@ function initScheduler(client) {
     }
 }
 
-module.exports = { initScheduler };
+export default { initScheduler };

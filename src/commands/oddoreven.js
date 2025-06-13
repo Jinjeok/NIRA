@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const _ = require('lodash');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import _ from 'lodash';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('홀짝')
     .setDescription('무작위 숫자의 홀/짝을 맞춰보세요.')

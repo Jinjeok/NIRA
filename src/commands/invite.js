@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } from 'discord.js';
 
 // NIRA 봇의 모든 현재 기능을 위한 고정 권한 세트
 const NIRA_REQUIRED_PERMISSIONS = [
@@ -7,7 +7,7 @@ const NIRA_REQUIRED_PERMISSIONS = [
     PermissionsBitField.Flags.ManageMessages,  // 메시지 관리 권한 (예: /메시지삭제)
 ];
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('초대하기')
         .setDescription('NIRA 봇을 서버에 초대하는 링크를 생성합니다.'),

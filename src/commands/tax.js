@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require('discord.js');
-const axios = require('axios');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder } from 'discord.js';
+import axios from 'axios';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('소비세')
     .setDescription('엔화 금액의 소비세 및 원화 환산 가격을 계산')

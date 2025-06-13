@@ -1,8 +1,13 @@
-const { WebhookClient } = require('discord.js');
-const fs = require('fs').promises;
-const path = require('path');
-const logger = require('../logger');
-const { fetchNewsEmbed } = require('../commands/newsletter'); // newsletter.js 에서 함수 가져오기
+import { WebhookClient } from 'discord.js';
+import fs from 'fs/promises';
+import path from 'path';
+import logger from '../logger.js';
+import { fileURLToPath } from 'node:url'; // __dirname 대체용
+
+// ES 모듈에서 __dirname을 사용하기 위한 설정
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import { fetchNewsEmbed } from '../commands/newsletter.js'; // newsletter.js 에서 함수 가져오기
 
 // --- Daily News Sender Configuration ---
 // 이 섹션에서 이 스케줄 작업에 대한 설정을 직접 관리합니다.
@@ -101,7 +106,7 @@ async function sendNews(client) {
     }
 }
 
-module.exports = {
+export default {
     sendNews,
     CRON_EXPRESSION, // 스케줄러에서 사용할 수 있도록 CRON 표현식 내보내기
 };

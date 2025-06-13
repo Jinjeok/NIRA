@@ -1,6 +1,6 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+import { SlashCommandBuilder } from '@discordjs/builders';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('나이')
     .setDescription('세는 나이 계산 (YYYY)')
@@ -16,4 +16,3 @@ module.exports = {
     await interaction.reply(`**${birthYear}**년생의 세는나이: **${currentYear - birthYear + 1}** 세`);
   },
 };
-

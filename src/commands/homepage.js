@@ -1,9 +1,9 @@
 // ./commands/명령어.js
 
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('홈페이지')
     .setDescription('NIRA의 홈페이지 링크를 출력합니다.'),

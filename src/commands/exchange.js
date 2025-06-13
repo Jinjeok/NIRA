@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder, MessageFlags } = require('discord.js');
-const axios = require('axios');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder, MessageFlags } from 'discord.js';
+import axios from 'axios';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('환율')
     .setDescription('환율을 조회하고 환산합니다.')

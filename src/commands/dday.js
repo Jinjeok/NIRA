@@ -1,8 +1,9 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const moment = require('moment');
-const { EmbedBuilder } = require('discord.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import moment from 'moment';
+import { EmbedBuilder } from 'discord.js';
+import 'moment/locale/ko.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('디데이')
     .setDescription('오늘과의 일수 차이 계산')
@@ -14,7 +15,6 @@ module.exports = {
 
   async execute(interaction) {
     // 한국어 요일 표시를 위해 로케일 설정 (다른 파일에서 이미 설정되었을 수 있지만, 명시적으로 추가)
-    require('moment/locale/ko');
 
     const s = interaction.options.getString('날짜');
     let dtMoment = moment(s, 'YYMMDD', true); // YYMMDD 형식으로 파싱 (엄격 모드)

@@ -1,13 +1,18 @@
 // d:\Users\KHM\OneDrive\Documents\dev\NIRA\src\utils\stock.js
 
-const path = require('path');
+import path from 'path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 // Load environment variables from .env file
 // .env 파일은 프로젝트 루트에 위치합니다.
 // 이 파일(stock.js)이 src/utils/ 폴더에 위치하므로, 프로젝트 루트까지의 상대 경로는 '../../.env' 입니다.
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // axios를 사용합니다.
-const axios = require('axios');
+import axios from 'axios';
 
 const API_KEY = process.env.STOCK_KEY;
 const API_URL = 'http://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo';
@@ -18,7 +23,7 @@ const API_URL = 'http://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoSe
  * @returns {Promise<Array<Object>|null>} A promise that resolves to an array of stock items, or null if an error occurs.
  * @param {object} logger - The logger instance for logging errors.
  */
-async function searchStock(stockName, logger) {
+export async function searchStock(stockName, logger) {
     if (!API_KEY) {
         logger.error("STOCK_KEY가 .env 파일에 정의되지 않았거나 로드되지 않았습니다. 경로 및 파일 내용을 확인해주세요.");
         logger.error(`.env 파일 로드 시도 기본 경로: ${path.resolve(__dirname, '../../.env')}`);
@@ -134,4 +139,4 @@ async function searchStock(stockName, logger) {
 })();
 */
 
-module.exports = { searchStock };
+// export default { searchStock }; // 변경: named export를 사용하므로 이 줄은 제거하거나 주석 처리합니다.

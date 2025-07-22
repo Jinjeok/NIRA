@@ -7,7 +7,29 @@ import dailyNewsTask from './schedule/dailyNewsSender.js';
 // 스플래툰 스케줄 작업 가져오기
 import splatoonTask from './schedule/splatoonSchedule.js';
 
+import karaokeSender from './schedule/karaokeSender.js'; // rss 이미지 전송 작업 가져오기
+
 function initScheduler(client) {
+
+    // --- RSS Image Task ---
+    if (karaokeSender && karaokeSender.CRON_EXPRESSION && karaokeSender.sendKaraokeImages) {
+        if (!cron.validate(karaokeSender.CRON_EXPRESSION)) {
+            logger.error(`[Scheduler] karaokeSender의 CRON 표현식이 유효하지 않습니다: ${karaokeSender.CRON_EXPRESSION}`);
+        } else {
+            logger.info(`[Scheduler] karaokeSender가 CRON 표현식 '${karaokeSender.CRON_EXPRESSION}' (Asia/Seoul 타임존)으로 설정되었습니다.`);
+            cron.schedule(karaokeSender.CRON_EXPRESSION, () => {
+                logger.info(`[Scheduler] karaokeSender 실행: ${new Date().toLocaleString()}`);
+                karaokeSender.sendKaraokeImages(client);
+            }, {
+                scheduled: true,
+                timezone: "Asia/Seoul"
+            });
+        }
+    } else {
+        logger.warn('[Scheduler] karaokeSender를 위한 설정(CRON_EXPRESSION) 또는 함수(sendRssImage)가 rssImageSender.js에 정의되지 않았습니다.');
+    }
+
+
     // --- Daily News Task ---
     if (dailyNewsTask && dailyNewsTask.CRON_EXPRESSION && dailyNewsTask.sendNews) {
         if (!cron.validate(dailyNewsTask.CRON_EXPRESSION)) {

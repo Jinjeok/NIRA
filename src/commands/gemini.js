@@ -27,7 +27,7 @@ export default {
     async execute(interaction) {
         // API 호출 전에 응답을 지연시킵니다.
         await interaction.deferReply();
-
+        //persona 작성
         const prompt = interaction.options.getString('프롬프트');
         const imageCreation = interaction.options.getBoolean('이미지생성') ?? false;
 

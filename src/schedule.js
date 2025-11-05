@@ -1,10 +1,10 @@
 import cron from 'node-cron';
 import logger from './logger.js';
 
-// 각 스케줄 작업 파일에서 설정과 함수를 가져옵니다.
-import dailyNewsTask from './schedule/dailyNewsSender.js';
+// 핫딜 스케줄 작업 가져오기
+import dailyHotdealTask from './schedule/dailyHotdealSender.js';
 
-// 스플래툰 스케줄 작업 가져오기
+// 스플래튤 스케줄 작업 가져오기
 import splatoonTask from './schedule/splatoonSchedule.js';
 
 import karaokeSender from './schedule/karaokeSender.js'; // rss 이미지 전송 작업 가져오기
@@ -29,23 +29,22 @@ function initScheduler(client) {
         logger.warn('[Scheduler] karaokeSender를 위한 설정(CRON_EXPRESSION) 또는 함수(sendRssImage)가 rssImageSender.js에 정의되지 않았습니다.');
     }
 
-
-    // --- Daily News Task ---
-    if (dailyNewsTask && dailyNewsTask.CRON_EXPRESSION && dailyNewsTask.sendNews) {
-        if (!cron.validate(dailyNewsTask.CRON_EXPRESSION)) {
-            logger.error(`[Scheduler] DailyNewsTask의 CRON 표현식이 유효하지 않습니다: ${dailyNewsTask.CRON_EXPRESSION}`);
+    // --- Daily Hotdeal Task (기존 Daily News Task 대체) ---
+    if (dailyHotdealTask && dailyHotdealTask.CRON_EXPRESSION && dailyHotdealTask.sendHotdeal) {
+        if (!cron.validate(dailyHotdealTask.CRON_EXPRESSION)) {
+            logger.error(`[Scheduler] DailyHotdealTask의 CRON 표현식이 유효하지 않습니다: ${dailyHotdealTask.CRON_EXPRESSION}`);
         } else {
-            logger.info(`[Scheduler] DailyNewsTask가 CRON 표현식 '${dailyNewsTask.CRON_EXPRESSION}' (Asia/Seoul 타임존)으로 설정되었습니다.`);
-            cron.schedule(dailyNewsTask.CRON_EXPRESSION, () => {
-                logger.info(`[Scheduler] DailyNewsTask 실행: ${new Date().toLocaleString()}`);
-                dailyNewsTask.sendNews(client);
+            logger.info(`[Scheduler] DailyHotdealTask가 CRON 표현식 '${dailyHotdealTask.CRON_EXPRESSION}' (Asia/Seoul 타임존)으로 설정되었습니다.`);
+            cron.schedule(dailyHotdealTask.CRON_EXPRESSION, () => {
+                logger.info(`[Scheduler] DailyHotdealTask 실행: ${new Date().toLocaleString()}`);
+                dailyHotdealTask.sendHotdeal(client);
             }, {
                 scheduled: true,
                 timezone: "Asia/Seoul"
             });
         }
     } else {
-        logger.warn('[Scheduler] DailyNewsTask를 위한 설정(CRON_EXPRESSION) 또는 함수(sendNews)가 dailyNewsSender.js에 정의되지 않았습니다.');
+        logger.warn('[Scheduler] DailyHotdealTask를 위한 설정(CRON_EXPRESSION) 또는 함수(sendHotdeal)가 dailyHotdealSender.js에 정의되지 않았습니다.');
     }
 
     // --- Splatoon Schedule Task ---

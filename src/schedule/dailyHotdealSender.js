@@ -51,7 +51,7 @@ async function setMessageId(id, key = 'dailyHotdeal') {
 }
 
 async function sendHotdeal(client) {
-    logger.info(`[DailyHotdealSender] 아르카 라이브 핫딜 전송 작업 시작 (모드: ${SEND_MODE})...`);
+    logger.info(`[DailyHotdealSender] 에펨코리아 핫딜 전송 작업 시작 (모드: ${SEND_MODE})...`);
     const hotdealEmbed = await fetchHotdealEmbed();
 
     if (!hotdealEmbed) {
@@ -67,7 +67,7 @@ async function sendHotdeal(client) {
             }
             const webhook = new WebhookClient({ url: WEBHOOK_URL });
             await webhook.send({ embeds: [hotdealEmbed] });
-            logger.info('[DailyHotdealSender] Webhook으로 핫딜 전송 완료.');
+            logger.info('[DailyHotdealSender] Webhook으로 에펨코리아 핫딜 전송 완료.');
         } else if (SEND_MODE === 'channel') {
             if (!CHANNEL_ID) {
                 logger.error('[DailyHotdealSender] Channel 모드이지만 CHANNEL_ID가 설정되지 않았습니다.');
@@ -100,7 +100,7 @@ async function sendHotdeal(client) {
             logger.error(`[DailyHotdealSender] 유효하지 않은 SEND_MODE: ${SEND_MODE}`);
         }
     } catch (error) {
-        logger.error('[DailyHotdealSender] 핫딜 전송 중 오류 발생:', error);
+        logger.error('[DailyHotdealSender] 에펨코리아 핫딜 전송 중 오류 발생:', error);
     }
 }
 

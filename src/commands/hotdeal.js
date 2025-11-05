@@ -9,9 +9,28 @@ const parser = new Parser({
 
 const PPOMPPU_RSS = 'https://www.ppomppu.co.kr/rss.php?id=ppomppu';
 
-function truncateClean(htmlOrText = '', len = 220) {
-  const text = (htmlOrText || '').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
-  return text.length > len ? text.slice(0, len - 3) + '...' : text;
+function clean(text = '') {
+  return (text || '').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+}
+function truncate(text = '', len) {
+  const t = clean(text);
+  return t.length > len ? t.slice(0, len - 1) + '…' : t;
+}
+
+// 제목 생성 규칙: [몰] 제목 (가격/배송)
+function buildTitleLine(item) {
+  const rawTitle = clean(item.title || '');
+  // 제목에서 쇼핑몰/가격/배송 힌트가 섞여 있을 수 있으므로 패턴 분리 시도
+  // 예: "[하이마트몰] 로라스타 IGGI 스티머 스팀다리미 (259,470원/무료)"
+  // RSS 제목 자체를 1차로 사용하되, 글자수 제한 적용
+  return truncate(rawTitle, 90);
+}
+
+// 본문 라인: [요약 본문](링크)
+function buildBodyLine(item) {
+  const link = item.link || 'https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu';
+  const body = truncate(item.contentSnippet || item.content || item.summary || '', 120);
+  return `[${body || '게시글 보기'}](${link})`;
 }
 
 export async function fetchHotdealEmbed() {
@@ -25,23 +44,18 @@ export async function fetchHotdealEmbed() {
 
     const embed = new EmbedBuilder()
       .setColor(0xFF8800)
-      .setTitle('🔥 뽐뿌 핫딜 (RSS)') // 제목 현상 유지
+      .setTitle('🔥 뽐뿌 핫딜 (RSS)')
       .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
       .setTimestamp();
 
-    // 상위 5개: 필드 대신 본문(description)만, 각 항목은 클릭 가능한 링크 형태로 구성
     const items = feed.items.slice(0, 5);
     const lines = items.map((item, idx) => {
-      const title = (item.title || '').trim();
-      const link = item.link || 'https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu';
-      const body = truncateClean(item.contentSnippet || item.content || item.summary || '', 220);
-      // 본문을 클릭 시 바로 링크되도록: 마크다운 링크를 본문에 적용
-      const clickable = `[${body || (title || '게시글 보기')}](${link})`;
-      return `${idx + 1}. ${clickable}`;
+      const titleLine = buildTitleLine(item);
+      const bodyLine = buildBodyLine(item);
+      return `${idx + 1}. ${titleLine}\n${bodyLine}`;
     });
 
     embed.setDescription(lines.join('\n\n'));
-
     return embed;
   } catch (err) {
     logger.error('[Hotdeal] RSS 파싱 실패:', err);

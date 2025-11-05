@@ -11,6 +11,7 @@ const PPOMPPU_RSS = 'https://www.ppomppu.co.kr/rss.php?id=ppomppu';
 const PAGE_SIZE = 5;
 const MAX_PAGES = 10; // 최대 10페이지 (최대 50개 항목)
 const CACHE_TTL_MS = 60 * 1000; // 60초 캐시
+const BUTTON_TTL_SEC = 60; // 버튼 유효기간 60초
 
 let _cache = { ts: 0, items: [], totalPages: 1 };
 
@@ -26,12 +27,10 @@ function buildTitleLine(item) {
   const rawTitle = clean(item.title || '');
   const title = truncate(rawTitle, 90);
   const link = item.link || 'https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu';
-  // 제목 굵게 + 제목에만 링크
   return `- [**${title}**](${link})`;
 }
 
 function buildBodyLine(item) {
-  // 본문 링크 제거, 30자 요약만 표시
   const body = truncate(item.contentSnippet || item.content || item.summary || '', 30);
   return `${body}`;
 }
@@ -56,7 +55,7 @@ async function getCachedItems() {
   } catch (e) {
     logger.warn('[Hotdeal] RSS 갱신 실패, 캐시 사용 시도:', e?.message || e);
     if (_cache.items.length) return { items: _cache.items, totalPages: _cache.totalPages };
-    throw e; // 캐시도 없으면 상위에서 폴백 처리
+    throw e;
   }
 }
 
@@ -72,18 +71,18 @@ function renderPage(items, pageIndex) {
   return lines.join('\n');
 }
 
-function buildComponents(pageIndex, totalPages) {
+function buildComponents(pageIndex, totalPages, issuedAtSec) {
   const prevDisabled = pageIndex <= 0;
   const nextDisabled = pageIndex >= totalPages - 1;
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`hotdeal_prev:${pageIndex}`)
+        .setCustomId(`hotdeal_prev:${pageIndex}:${issuedAtSec}`)
         .setLabel('이전')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(prevDisabled),
       new ButtonBuilder()
-        .setCustomId(`hotdeal_next:${pageIndex}`)
+        .setCustomId(`hotdeal_next:${pageIndex}:${issuedAtSec}`)
         .setLabel('다음')
         .setStyle(ButtonStyle.Primary)
         .setDisabled(nextDisabled)
@@ -91,7 +90,7 @@ function buildComponents(pageIndex, totalPages) {
   ];
 }
 
-export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons = true) {
+export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons = true, issuedAtSec = null) {
   try {
     const { items, totalPages } = await getCachedItems();
     const clampedPage = Math.min(Math.max(0, pageIndex), totalPages - 1);
@@ -104,7 +103,8 @@ export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons 
       .setFooter({ text: `페이지 ${clampedPage + 1} / ${totalPages}` })
       .setTimestamp();
 
-    const components = withButtons ? buildComponents(clampedPage, totalPages) : [];
+    const ts = issuedAtSec ?? Math.floor(Date.now() / 1000);
+    const components = withButtons ? buildComponents(clampedPage, totalPages, ts) : [];
     return { embed, components };
   } catch (err) {
     logger.error('[Hotdeal] RSS 파싱/캐시 실패:', err);
@@ -119,9 +119,23 @@ export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons 
 }
 
 export async function fetchHotdealEmbed() {
-  // 스케줄러 용: 버튼 없이 embed만 반환
   const { embed } = await buildHotdealEmbedAndComponents(0, false);
   return embed;
+}
+
+function disabledComponentsFrom(components) {
+  return components.map(row => {
+    const newRow = new ActionRowBuilder();
+    row.components.forEach(comp => {
+      if (comp.data?.custom_id?.startsWith('hotdeal_prev:') || comp.data?.custom_id?.startsWith('hotdeal_next:')) {
+        const btn = ButtonBuilder.from(comp).setDisabled(true);
+        newRow.addComponents(btn);
+      } else {
+        newRow.addComponents(comp);
+      }
+    });
+    return newRow;
+  });
 }
 
 export default {
@@ -131,7 +145,8 @@ export default {
 
   async execute(interaction) {
     await interaction.deferReply();
-    const { embed, components } = await buildHotdealEmbedAndComponents(0, true);
+    const issuedAtSec = Math.floor(Date.now() / 1000);
+    const { embed, components } = await buildHotdealEmbedAndComponents(0, true, issuedAtSec);
     await interaction.editReply({ embeds: [embed], components });
   },
 
@@ -141,12 +156,35 @@ export default {
 
     try { await interaction.deferUpdate(); } catch {}
 
-    const [key, pageStr] = cid.split(':');
+    const parts = cid.split(':');
+    const key = parts[0];
+    const pageStr = parts[1];
+    const issuedAtSec = parseInt(parts[2] || '0', 10) || 0;
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const expired = issuedAtSec && (nowSec - issuedAtSec >= BUTTON_TTL_SEC);
+
+    if (expired) {
+      // 버튼 비활성화만 수행
+      const msg = await interaction.fetchReply();
+      const currentComponents = msg.components;
+      const disabled = disabledComponentsFrom(currentComponents);
+      try {
+        await interaction.editReply({ components: disabled });
+      } catch (e) {
+        logger.warn('[Hotdeal] 만료 비활성화 중 edit 실패, update 재시도');
+        try { await interaction.update({ components: disabled }); } catch (e2) {
+          logger.error('[Hotdeal] 만료 비활성화 실패:', e2);
+        }
+      }
+      return;
+    }
+
     const current = parseInt(pageStr || '0', 10) || 0;
     const delta = key === 'hotdeal_next' ? 1 : -1;
     const nextPage = current + delta;
 
-    const { embed, components } = await buildHotdealEmbedAndComponents(nextPage, true);
+    const { embed, components } = await buildHotdealEmbedAndComponents(nextPage, true, issuedAtSec);
 
     try {
       await interaction.editReply({ embeds: [embed], components });

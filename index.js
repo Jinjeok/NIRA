@@ -48,39 +48,34 @@ async function main() {
 
     client.on('interactionCreate', async interaction => {
         try {
-            // 1) 버튼 상호작용 처리 (핫딜 페이지네이션)
+            // 최소 라우팅만 추가: 핫딜 버튼은 커맨드 모듈에서 처리
             if (interaction.isButton()) {
                 const cid = interaction.customId || '';
                 if (cid.startsWith('hotdeal_prev:') || cid.startsWith('hotdeal_next:')) {
-                    // 핸들러 탐색 및 실행
                     const hotdeal = interaction.client.commands.get('핫딜');
                     if (hotdeal?.handleComponent) {
-                        // 버튼 응답 지연 허용 (3초 제한 회피)
-                        await interaction.deferUpdate();
                         await hotdeal.handleComponent(interaction);
                         return;
                     }
                 }
             }
 
-            // 2) 슬래시 명령 처리
-            if (interaction.isChatInputCommand()) {
-                const command = interaction.client.commands.get(interaction.commandName);
-                if (!command) {
-                    logger.error(`슬래시 커맨드 "${interaction.commandName}"를 찾을 수 없습니다.`);
-                    await interaction.reply({ content: '알 수 없는 명령어입니다.', ephemeral: true });
-                    return;
-                }
-                await command.execute(interaction, client, logger);
+            if (!interaction.isChatInputCommand()) return;
+
+            const command = interaction.client.commands.get(interaction.commandName);
+
+            if (!command) {
+                logger.error(`슬래시 커맨드 "${interaction.commandName}"를 찾을 수 없습니다.`);
+                await interaction.reply({ content: '알 수 없는 명령어입니다.', ephemeral: true });
                 return;
             }
+
+            await command.execute(interaction, client, logger);
         } catch (error) {
-            logger.error(`[interactionCreate] error:`, error);
+            logger.error(`커맨드/버튼 처리 중 오류:`, error);
             if (interaction.isRepliable()) {
                 if (interaction.deferred) {
                     await interaction.editReply({ content: '오류가 발생했습니다. 잠시 후 다시 시도해주세요.' });
-                } else if (interaction.isButton()) {
-                    await interaction.reply({ content: '오류가 발생했습니다. 잠시 후 다시 시도해주세요.', ephemeral: true });
                 } else {
                     await interaction.reply({ content: '오류가 발생했습니다.', ephemeral: true });
                 }

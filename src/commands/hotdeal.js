@@ -17,19 +17,14 @@ function truncate(text = '', len) {
   return t.length > len ? t.slice(0, len - 1) + '…' : t;
 }
 
-// 제목 생성 규칙: [몰] 제목 (가격/배송)
 function buildTitleLine(item) {
   const rawTitle = clean(item.title || '');
-  // 제목에서 쇼핑몰/가격/배송 힌트가 섞여 있을 수 있으므로 패턴 분리 시도
-  // 예: "[하이마트몰] 로라스타 IGGI 스티머 스팀다리미 (259,470원/무료)"
-  // RSS 제목 자체를 1차로 사용하되, 글자수 제한 적용
   return truncate(rawTitle, 90);
 }
 
-// 본문 라인: [요약 본문](링크)
 function buildBodyLine(item) {
   const link = item.link || 'https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu';
-  const body = truncate(item.contentSnippet || item.content || item.summary || '', 120);
+  const body = truncate(item.contentSnippet || item.content || item.summary || '', 30); // 본문 30자 제한
   return `[${body || '게시글 보기'}](${link})`;
 }
 
@@ -48,6 +43,7 @@ export async function fetchHotdealEmbed() {
       .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
       .setTimestamp();
 
+    // 간격을 줄이기 위해 항목 사이 공백 제거 (줄바꿈 1개만)
     const items = feed.items.slice(0, 5);
     const lines = items.map((item, idx) => {
       const titleLine = buildTitleLine(item);
@@ -55,7 +51,7 @@ export async function fetchHotdealEmbed() {
       return `${idx + 1}. ${titleLine}\n${bodyLine}`;
     });
 
-    embed.setDescription(lines.join('\n\n'));
+    embed.setDescription(lines.join('\n')); // 항목 사이 공백 줄 제거
     return embed;
   } catch (err) {
     logger.error('[Hotdeal] RSS 파싱 실패:', err);

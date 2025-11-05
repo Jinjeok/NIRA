@@ -96,8 +96,8 @@ export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons 
     const clampedPage = Math.min(Math.max(0, pageIndex), totalPages - 1);
 
     const embed = new EmbedBuilder()
-      .setColor(0xFF8800)
-      .setTitle('🔥 뽐뿌 핫딜 (RSS)')
+      .setColor(0xEE82EE)
+      .setTitle('🔥 핫딜 정보')
       .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
       .setDescription(renderPage(items, clampedPage))
       .setFooter({ text: `페이지 ${clampedPage + 1} / ${totalPages}` })
@@ -109,8 +109,8 @@ export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons 
   } catch (err) {
     logger.error('[Hotdeal] RSS 파싱/캐시 실패:', err);
     const fallback = new EmbedBuilder()
-      .setColor(0xFF8800)
-      .setTitle('🔥 뽐뿌 핫딜 (RSS)')
+      .setColor(0xEE82EE)
+      .setTitle('🔥 핫딜 정보')
       .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
       .setDescription('[최신 핫딜을 여기에서 확인하세요](https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu)')
       .setTimestamp();
@@ -119,8 +119,7 @@ export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons 
 }
 
 function removeButtonsFrom(components) {
-  // 모든 버튼 컴포넌트를 제거하여 클릭 자체를 불가능하게 만듭니다.
-  return []; // Discord는 빈 배열 전달 시 컴포넌트를 제거합니다.
+  return [];
 }
 
 export async function fetchHotdealEmbed() {
@@ -137,7 +136,6 @@ export default {
     await interaction.deferReply();
     const issuedAtSec = Math.floor(Date.now() / 1000);
     const { embed, components } = await buildHotdealEmbedAndComponents(0, true, issuedAtSec);
-    // 60초 뒤 자동으로 버튼 제거 스케줄
     setTimeout(async () => {
       try {
         const msg = await interaction.fetchReply();
@@ -164,7 +162,6 @@ export default {
     const expired = issuedAtSec && (nowSec - issuedAtSec >= BUTTON_TTL_SEC);
 
     if (expired) {
-      // 만료: 버튼을 완전히 제거
       const msg = await interaction.fetchReply();
       try {
         await interaction.editReply({ components: removeButtonsFrom(msg.components) });

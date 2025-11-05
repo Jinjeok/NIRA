@@ -30,6 +30,14 @@ function buildBodyLine(item) {
   return `[${body || '게시글 보기'}](${link})`;
 }
 
+async function fetchRssItems() {
+  const feed = await parser.parseURL(PPOMPPU_RSS);
+  const items = feed?.items || [];
+  const limited = items.slice(0, PAGE_SIZE * MAX_PAGES);
+  const totalPages = Math.max(1, Math.ceil(limited.length / PAGE_SIZE));
+  return { items: limited, totalPages };
+}
+
 function renderPage(items, pageIndex) {
   const start = pageIndex * PAGE_SIZE;
   const end = start + PAGE_SIZE;
@@ -61,43 +69,26 @@ function buildComponents(pageIndex, totalPages) {
   ];
 }
 
-async function fetchRssItems() {
-  const feed = await parser.parseURL(PPOMPPU_RSS);
-  const items = feed?.items || [];
-  const limited = items.slice(0, PAGE_SIZE * MAX_PAGES);
-  return { items: limited, totalPages: Math.max(1, Math.ceil(limited.length / PAGE_SIZE)) };
-}
+export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons = true) {
+  const { items, totalPages } = await fetchRssItems();
+  const clampedPage = Math.min(Math.max(0, pageIndex), totalPages - 1);
 
-export async function buildHotdealEmbedAndComponents(pageIndex = 0) {
-  try {
-    const { items, totalPages } = await fetchRssItems();
-    const clampedPage = Math.min(Math.max(0, pageIndex), totalPages - 1);
+  const embed = new EmbedBuilder()
+    .setColor(0xFF8800)
+    .setTitle('🔥 뽐뿌 핫딜 (RSS)')
+    .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
+    .setDescription(renderPage(items, clampedPage))
+    .setFooter({ text: `페이지 ${clampedPage + 1} / ${totalPages}` })
+    .setTimestamp();
 
-    const embed = new EmbedBuilder()
-      .setColor(0xFF8800)
-      .setTitle('🔥 뽐뿌 핫딜 (RSS)')
-      .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
-      .setDescription(renderPage(items, clampedPage))
-      .setFooter({ text: `페이지 ${clampedPage + 1} / ${totalPages}` })
-      .setTimestamp();
-
-    const components = buildComponents(clampedPage, totalPages);
-    return { embed, components };
-  } catch (err) {
-    logger.error('[Hotdeal] RSS 파싱 실패:', err);
-    const fallback = new EmbedBuilder()
-      .setColor(0xFF8800)
-      .setTitle('🔥 뽐뿌 핫딜 (RSS)')
-      .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
-      .setDescription('[최신 핫딜을 여기에서 확인하세요](https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu)')
-      .setTimestamp();
-    return { embed: fallback, components: [] };
-  }
+  const components = withButtons ? buildComponents(clampedPage, totalPages) : [];
+  return { embed, components };
 }
 
 export async function fetchHotdealEmbed() {
-  const { embed } = await buildHotdealEmbedAndComponents(0);
-  return embed; // 스케줄러 호환 유지(컴포넌트는 스케줄러에서 따로 지정하지 않음)
+  // 스케줄러 용: 버튼 없이 embed만 반환
+  const { embed } = await buildHotdealEmbedAndComponents(0, false);
+  return embed;
 }
 
 export default {
@@ -107,21 +98,40 @@ export default {
 
   async execute(interaction) {
     await interaction.deferReply();
-    const { embed, components } = await buildHotdealEmbedAndComponents(0);
+    const { embed, components } = await buildHotdealEmbedAndComponents(0, true);
     await interaction.editReply({ embeds: [embed], components });
   },
 
-  // 버튼 상호작용 핸들러(스케줄러/명령 모두 재사용 가능)
+  // 버튼 상호작용 핸들러: index.js 수정 없이 src만으로 처리 (reply/update는 여기서만 수행)
   async handleComponent(interaction) {
-    if (!interaction.isButton()) return;
-    const [key, pageStr] = (interaction.customId || '').split(':');
-    if (key !== 'hotdeal_prev' && key !== 'hotdeal_next') return;
+    const cid = interaction.customId || '';
+    if (!(cid.startsWith('hotdeal_prev:') || cid.startsWith('hotdeal_next:'))) return;
 
+    // 3초 제한 방지: 먼저 update를 예약(deferUpdate) 후 편집
+    try {
+      await interaction.deferUpdate();
+    } catch (e) {
+      // 이미 defer되었거나 응답된 경우는 무시
+    }
+
+    const [key, pageStr] = cid.split(':');
     const current = parseInt(pageStr || '0', 10) || 0;
     const delta = key === 'hotdeal_next' ? 1 : -1;
     const nextPage = current + delta;
 
-    const { embed, components } = await buildHotdealEmbedAndComponents(nextPage);
-    await interaction.update({ embeds: [embed], components });
+    const { embed, components } = await buildHotdealEmbedAndComponents(nextPage, true);
+
+    // index.js 변경 없이, 여기서 editReply 수행
+    try {
+      await interaction.editReply({ embeds: [embed], components });
+    } catch (e) {
+      // editReply 실패 시 update로 시도 (일부 환경 호환)
+      try {
+        await interaction.update({ embeds: [embed], components });
+      } catch (e2) {
+        // 최종 실패는 로그만
+        logger.error('[Hotdeal] 버튼 상호작용 업데이트 실패:', e2);
+      }
+    }
   },
 };

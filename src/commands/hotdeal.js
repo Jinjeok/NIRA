@@ -118,24 +118,14 @@ export async function buildHotdealEmbedAndComponents(pageIndex = 0, withButtons 
   }
 }
 
+function removeButtonsFrom(components) {
+  // 모든 버튼 컴포넌트를 제거하여 클릭 자체를 불가능하게 만듭니다.
+  return []; // Discord는 빈 배열 전달 시 컴포넌트를 제거합니다.
+}
+
 export async function fetchHotdealEmbed() {
   const { embed } = await buildHotdealEmbedAndComponents(0, false);
   return embed;
-}
-
-function disabledComponentsFrom(components) {
-  return components.map(row => {
-    const newRow = new ActionRowBuilder();
-    row.components.forEach(comp => {
-      if (comp.data?.custom_id?.startsWith('hotdeal_prev:') || comp.data?.custom_id?.startsWith('hotdeal_next:')) {
-        const btn = ButtonBuilder.from(comp).setDisabled(true);
-        newRow.addComponents(btn);
-      } else {
-        newRow.addComponents(comp);
-      }
-    });
-    return newRow;
-  });
 }
 
 export default {
@@ -147,6 +137,15 @@ export default {
     await interaction.deferReply();
     const issuedAtSec = Math.floor(Date.now() / 1000);
     const { embed, components } = await buildHotdealEmbedAndComponents(0, true, issuedAtSec);
+    // 60초 뒤 자동으로 버튼 제거 스케줄
+    setTimeout(async () => {
+      try {
+        const msg = await interaction.fetchReply();
+        await interaction.editReply({ components: removeButtonsFrom(msg.components) });
+      } catch (e) {
+        logger.warn('[Hotdeal] 자동 만료(버튼 제거) 중 오류:', e?.message || e);
+      }
+    }, BUTTON_TTL_SEC * 1000);
     await interaction.editReply({ embeds: [embed], components });
   },
 
@@ -165,16 +164,13 @@ export default {
     const expired = issuedAtSec && (nowSec - issuedAtSec >= BUTTON_TTL_SEC);
 
     if (expired) {
-      // 버튼 비활성화만 수행
+      // 만료: 버튼을 완전히 제거
       const msg = await interaction.fetchReply();
-      const currentComponents = msg.components;
-      const disabled = disabledComponentsFrom(currentComponents);
       try {
-        await interaction.editReply({ components: disabled });
+        await interaction.editReply({ components: removeButtonsFrom(msg.components) });
       } catch (e) {
-        logger.warn('[Hotdeal] 만료 비활성화 중 edit 실패, update 재시도');
-        try { await interaction.update({ components: disabled }); } catch (e2) {
-          logger.error('[Hotdeal] 만료 비활성화 실패:', e2);
+        try { await interaction.update({ components: [] }); } catch (e2) {
+          logger.error('[Hotdeal] 만료시 버튼 제거 실패:', e2);
         }
       }
       return;

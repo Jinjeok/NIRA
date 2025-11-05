@@ -18,7 +18,6 @@ const client = new Client({
 client.commands = new Collection();
 
 async function loadCommands() {
-    // commands 폴더의 경로를 src/commands로 변경합니다.
     const commandsPath = path.join(__dirname, 'src', 'commands');
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
@@ -26,7 +25,7 @@ async function loadCommands() {
         const filePath = path.join(commandsPath, file);
         try {
             const commandModule = await import(pathToFileURL(filePath).href);
-            const command = commandModule.default || commandModule; // ES 모듈의 default export를 사용한다고 가정
+            const command = commandModule.default || commandModule;
             if (command && 'data' in command && 'execute' in command) {
                 client.commands.set(command.data.name, command);
             } else {
@@ -48,24 +47,43 @@ async function main() {
     });
 
     client.on('interactionCreate', async interaction => {
-        if (!interaction.isChatInputCommand()) return;
-
-        const command = interaction.client.commands.get(interaction.commandName);
-
-        if (!command) {
-            logger.error(`슬래시 커맨드 "${interaction.commandName}"를 찾을 수 없습니다.`);
-            await interaction.reply({ content: '알 수 없는 명령어입니다.', ephemeral: true });
-            return;
-        }
-
         try {
-            await command.execute(interaction, client, logger); // 커맨드의 execute 함수 실행
+            // 1) 버튼 상호작용 처리 (핫딜 페이지네이션)
+            if (interaction.isButton()) {
+                const cid = interaction.customId || '';
+                if (cid.startsWith('hotdeal_prev:') || cid.startsWith('hotdeal_next:')) {
+                    // 핸들러 탐색 및 실행
+                    const hotdeal = interaction.client.commands.get('핫딜');
+                    if (hotdeal?.handleComponent) {
+                        // 버튼 응답 지연 허용 (3초 제한 회피)
+                        await interaction.deferUpdate();
+                        await hotdeal.handleComponent(interaction);
+                        return;
+                    }
+                }
+            }
+
+            // 2) 슬래시 명령 처리
+            if (interaction.isChatInputCommand()) {
+                const command = interaction.client.commands.get(interaction.commandName);
+                if (!command) {
+                    logger.error(`슬래시 커맨드 "${interaction.commandName}"를 찾을 수 없습니다.`);
+                    await interaction.reply({ content: '알 수 없는 명령어입니다.', ephemeral: true });
+                    return;
+                }
+                await command.execute(interaction, client, logger);
+                return;
+            }
         } catch (error) {
-            logger.error(`커맨드 "${interaction.commandName}" 실행 중 오류 발생:`, error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: '명령어 실행 중 오류가 발생했습니다!', ephemeral: true });
-            } else {
-                await interaction.reply({ content: '명령어 실행 중 오류가 발생했습니다!', ephemeral: true });
+            logger.error(`[interactionCreate] error:`, error);
+            if (interaction.isRepliable()) {
+                if (interaction.deferred) {
+                    await interaction.editReply({ content: '오류가 발생했습니다. 잠시 후 다시 시도해주세요.' });
+                } else if (interaction.isButton()) {
+                    await interaction.reply({ content: '오류가 발생했습니다. 잠시 후 다시 시도해주세요.', ephemeral: true });
+                } else {
+                    await interaction.reply({ content: '오류가 발생했습니다.', ephemeral: true });
+                }
             }
         }
     });

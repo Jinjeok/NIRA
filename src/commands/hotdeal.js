@@ -3,56 +3,48 @@ import Parser from 'rss-parser';
 import logger from '../logger.js';
 
 const parser = new Parser({
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (compatible; NIRA/1.0; +https://github.com/Jinjeok/NIRA)'
-  }
+  headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NIRA/1.0; +https://github.com/Jinjeok/NIRA)' },
+  timeout: 10000,
 });
 
-// 뽐뿌 핫딜 RSS URL (뽐뿌게시판)
 const PPOMPPU_RSS = 'https://www.ppomppu.co.kr/rss.php?id=ppomppu';
 
-function truncate(text = '', len = 180) {
-  const clean = text.replace(/\s+/g, ' ').trim();
-  return clean.length > len ? clean.slice(0, len - 3) + '...' : clean;
+function truncateClean(htmlOrText = '', len = 220) {
+  const text = (htmlOrText || '').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+  return text.length > len ? text.slice(0, len - 3) + '...' : text;
 }
 
 export async function fetchHotdealEmbed() {
   try {
-    logger.info('[Hotdeal] 뽐뿌 RSS에서 핫딜 수집 중...');
+    logger.info('[Hotdeal] 뽐뿌 RSS 수집...');
     const feed = await parser.parseURL(PPOMPPU_RSS);
-
     if (!feed?.items?.length) {
-      logger.warn('[Hotdeal] RSS 항목이 비어있습니다.');
+      logger.warn('[Hotdeal] RSS 항목 없음');
       return createFallbackEmbed();
     }
 
     const embed = new EmbedBuilder()
       .setColor(0xFF8800)
-      .setTitle('🔥 뽐뿌 핫딜 (RSS)')
+      .setTitle('🔥 뽐뿌 핫딜 (RSS)') // 제목 현상 유지
       .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
-      .setTimestamp()
-      .setFooter({ text: '출처: 뽐뿌 핫딜 (RSS)' });
+      .setTimestamp();
 
-    const top = feed.items.slice(0, 5);
-    top.forEach((item, idx) => {
-      const title = truncate(item.title || '제목 없음', 100);
-      const desc = truncate(item.contentSnippet || item.content || item.summary || '', 230);
+    // 상위 5개: 필드 대신 본문(description)만, 각 항목은 클릭 가능한 링크 형태로 구성
+    const items = feed.items.slice(0, 5);
+    const lines = items.map((item, idx) => {
+      const title = (item.title || '').trim();
       const link = item.link || 'https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu';
-      const author = item.creator || item.author || (item.dc && item.dc.creator) || '';
-      const pubDate = item.pubDate ? new Date(item.pubDate).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '';
-
-      let value = '';
-      if (author) value += `👤 ${author}`;
-      if (pubDate) value += (value ? ' | ' : '') + `🕒 ${pubDate}`;
-      if (desc) value += `\n${desc}`;
-      value += `\n[게시글 보기](${link})`;
-
-      embed.addFields({ name: `${idx + 1}. ${title}`, value, inline: false });
+      const body = truncateClean(item.contentSnippet || item.content || item.summary || '', 220);
+      // 본문을 클릭 시 바로 링크되도록: 마크다운 링크를 본문에 적용
+      const clickable = `[${body || (title || '게시글 보기')}](${link})`;
+      return `${idx + 1}. ${clickable}`;
     });
+
+    embed.setDescription(lines.join('\n\n'));
 
     return embed;
   } catch (err) {
-    logger.error('[Hotdeal] 뽐뿌 RSS 파싱 실패:', err);
+    logger.error('[Hotdeal] RSS 파싱 실패:', err);
     return createFallbackEmbed();
   }
 }
@@ -60,9 +52,9 @@ export async function fetchHotdealEmbed() {
 function createFallbackEmbed() {
   return new EmbedBuilder()
     .setColor(0xFF8800)
-    .setTitle('🔥 뽐뿌 핫딜')
+    .setTitle('🔥 뽐뿌 핫딜 (RSS)')
     .setURL('https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu')
-    .setDescription('현재 자동 수집에 문제가 있습니다. 링크를 통해 최신 핫딜을 확인해주세요.')
+    .setDescription('[최신 핫딜을 여기에서 확인하세요](https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu)')
     .setTimestamp();
 }
 

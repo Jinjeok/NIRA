@@ -1,65 +1,178 @@
-name: Deploy Docusaurus to GitHub Pages
+name: CI/CD - Deploy Bot & Docs
 
 on:
   push:
-    branches:
-      - main # 또는 master, 혹은 배포를 원하는 브랜치 이름
+    branches: [ main ]
   pull_request:
-    branches:
-      - main # 또는 master
+    branches: [ main ]
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+# GitHub Pages 배포를 위한 동시성 제어
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
-# GITHUB_TOKEN의 권한을 설정하여 GitHub Pages에 배포할 수 있도록 합니다.
+# GitHub Pages 배포 권한
 permissions:
   contents: read
   pages: write
   id-token: write
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # 1. CI 작업 (코드 검증)
+  ci:
+    name: CI (Install / Test)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # 모든 히스토리를 가져와서 lastmod, git-commit-date-localized 등을 사용할 수 있게 합니다.
 
-      - name: Set up Node.js
+      - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # 또는 프로젝트에서 사용하는 Node.js 버전
-          cache: 'npm' # 또는 yarn, 프로젝트에 맞게 수정
-          cache-dependency-path: ./docs/package-lock.json # Docusaurus 프로젝트의 package-lock.json 또는 yarn.lock 경로
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install dependencies
-        working-directory: ./docs # Docusaurus 프로젝트 디렉토리
-        run: npm ci # 또는 yarn install --frozen-lockfile
+      - name: Install bot dependencies
+        run: npm ci
 
-      - name: Build
-        working-directory: ./docs # Docusaurus 프로젝트 디렉토리
-        run: npm run build # 또는 yarn build
+      # 봇 코드 테스트 (있다면)
+      # - name: Test bot
+      #   run: npm test --if-present
 
-      # GitHub Pages 액션을 사용하여 배포합니다.
-      # peaceiris/actions-gh-pages 액션은 build 폴더의 내용을 gh-pages 브랜치에 푸시합니다.
-      # Docusaurus의 기본 배포 스크립트를 사용하는 방법도 있습니다. (아래 주석 참고)
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+  # 2. 문서 빌드 및 배포 (GitHub Pages)
+  docs:
+    name: Deploy Docusaurus to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/build # Docusaurus 빌드 출력 디렉토리 (루트에서 docs/build)
-          # cname: your-custom-domain.com # 사용자 정의 도메인이 있다면 주석 해제
+          fetch-depth: 0
 
-      # Docusaurus 자체 배포 명령어를 사용하는 방법 (위의 peaceiris/actions-gh-pages 대신 사용 가능)
-      # - name: Deploy with Docusaurus
-      #   run: |
-      #     git config --global user.name "${{ github.actor }}"
-      #     git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-      #     npm run deploy
+      - name: Set up Node.js for Docs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: ./docs/package-lock.json
+
+      - name: Install docs dependencies
+        working-directory: ./docs
+        run: npm ci
+
+      - name: Build docs
+        working-directory: ./docs
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs/build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # 3. 서버 배포 (Discord Bot)
+  deploy-bot:
+    name: Deploy Bot to Server
+    runs-on: ubuntu-latest
+    needs: ci
+    if: "github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip deploy]')"
+    steps:
+      - name: Deploy Bot over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            echo "🚀 Bot deploy started at $(date)"
+            
+            echo "📁 Move to app directory"
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            echo "💾 Backup .env file"
+            if [ -f .env ]; then cp .env .env.backup; fi
+
+            echo "🛑 Stop NIRA service"
+            sudo systemctl stop ${{ secrets.SERVICE_NAME }}
+
+            echo "📥 Update code from Git"
+            git fetch --all -p
+            git checkout main
+            git pull origin main
+
+            echo "🔐 Restore .env file"
+            if [ -f .env.backup ]; then mv -f .env.backup .env; fi
+
+            echo "📦 Install dependencies"
+            npm ci --omit=dev
+
+            echo "🔧 Deploy Discord commands (if script exists)"
+            if [ -f "deploy-commands.js" ]; then
+              /usr/local/bin/node deploy-commands.js
+            fi
+
+            echo "✅ Start NIRA service"
+            sudo systemctl start ${{ secrets.SERVICE_NAME }}
+
+            echo "🔍 Verify service status"
+            sleep 3
+            if sudo systemctl is-active --quiet ${{ secrets.SERVICE_NAME }}; then
+              echo "✅ Bot service is running successfully"
+              echo "📊 Service status:"
+              sudo systemctl status ${{ secrets.SERVICE_NAME }} --no-pager -l
+            else
+              echo "❌ Bot service failed to start"
+              sudo systemctl status ${{ secrets.SERVICE_NAME }} --no-pager -l
+              echo "📋 Recent logs:"
+              sudo journalctl -u ${{ secrets.SERVICE_NAME }} --no-pager -l -n 20
+              exit 1
+            fi
+
+            echo "🎉 Bot deploy completed at $(date)"
+
+  # 4. 배포 완료 알림 (선택사항)
+  notify:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [docs, deploy-bot]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.docs.result }}" == "success" ]]; then
+            echo "✅ **Documentation deployed successfully**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Documentation deployment failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.deploy-bot.result }}" == "success" ]]; then
+            echo "✅ **Bot deployed successfully**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Bot deployment failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **Links:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [Repository](https://github.com/${{ github.repository }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Documentation](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }})" >> $GITHUB_STEP_SUMMARY

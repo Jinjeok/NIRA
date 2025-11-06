@@ -36,15 +36,9 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/Jinjeok/NIRA/edit/main/docs/',
+          routeBasePath: '/', // Serve docs at site's root
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: { type: ['rss', 'atom'], xslt: true },
-          editUrl: 'https://github.com/Jinjeok/NIRA/edit/main/docs/',
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        blog: false, // Disable blog functionality
         theme: { customCss: './src/css/custom.css' },
       } satisfies Preset.Options,
     ],
@@ -57,14 +51,13 @@ const config: Config = {
       logo: { alt: 'NIRA Logo', src: 'img/logo.svg' },
       items: [
         { type: 'docSidebar', sidebarId: 'tutorialSidebar', position: 'left', label: 'Docs' },
-        { to: '/blog', label: 'Blog', position: 'left' },
         { href: 'https://github.com/Jinjeok/NIRA', label: 'GitHub', position: 'right' },
       ],
     },
     footer: {
       style: 'dark',
       links: [
-        { title: 'Docs', items: [ { label: 'Intro', to: '/docs/intro' } ] },
+        { title: 'Docs', items: [ { label: 'Intro', to: '/' } ] },
         { title: 'Community', items: [ { label: 'GitHub', href: 'https://github.com/Jinjeok/NIRA' } ] },
       ],
       copyright: `Copyright © ${new Date().getFullYear()} NIRA`,

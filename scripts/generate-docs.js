@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * NIRA 명령어 및 스케줄 문서 자동 생성 스크립트 (ESM)
+ * NIRA 명령어 및 스케줄 문서 자동 생성 스크립트 (ESM) - 파라미터 표 포함
  */
 
 import fs from 'fs';
@@ -32,14 +32,24 @@ function extractCommandInfo(filePath) {
     const nameMatch = content.match(/\.setName\(['"`]([^'"`]+)['"`]\)/);
     const descMatch = content.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/);
 
-    const optionRegex = /(addStringOption|addIntegerOption|addBooleanOption|addUserOption|addChannelOption)\(([^)]*)\)\s*=>\s*\{[\s\S]*?\}/g;
+    const optionRegex = /(addStringOption|addIntegerOption|addBooleanOption|addUserOption|addChannelOption|addNumberOption)\(([^)]*)\)\s*=>\s*\{[\s\S]*?\}/g;
     const options = [];
     for (const match of content.matchAll(optionRegex)) {
       const block = match[0];
+      const typeMap = {
+        addStringOption: 'string',
+        addIntegerOption: 'integer',
+        addBooleanOption: 'boolean',
+        addUserOption: 'user',
+        addChannelOption: 'channel',
+        addNumberOption: 'number',
+      };
+      const typeKey = match[1];
+      const type = typeMap[typeKey] || 'string';
       const optName = block.match(/\.setName\(['"`]([^'"`]+)['"`]\)/);
       const optDesc = block.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/);
       const required = /\.setRequired\(true\)/.test(block);
-      if (optName && optDesc) options.push({ name: optName[1], description: optDesc[1], required });
+      if (optName && optDesc) options.push({ name: optName[1], description: optDesc[1], required, type });
     }
 
     const exampleMatch = content.match(/\/\*\*?[\s\S]*?예시[\s\S]*?\*\//i) || content.match(/\/\/.*예시.*/);
@@ -55,10 +65,7 @@ function extractCommandInfo(filePath) {
   } catch (e) { console.warn(`파일 처리 오류: ${filePath}: ${e.message}`); return null; }
 }
 
-function categorizeCommand(fileName) {
-  for (const [id, cat] of Object.entries(CATEGORIES)) if (cat.keywords.includes(fileName)) return id;
-  return 'misc';
-}
+function categorizeCommand(fileName) { for (const [id, cat] of Object.entries(CATEGORIES)) if (cat.keywords.includes(fileName)) return id; return 'misc'; }
 
 function extractScheduleInfo(filePath) {
   try {
@@ -71,12 +78,11 @@ function extractScheduleInfo(filePath) {
   } catch (e) { console.warn(`스케줄 처리 오류: ${filePath}: ${e.message}`); return null; }
 }
 
-function categorizeSchedule(fileName) {
-  if (/hotdeal/i.test(fileName)) return 'hotdeal';
-  if (/news/i.test(fileName)) return 'news';
-  if (/karaoke/i.test(fileName)) return 'entertainment';
-  if (/splatoon/i.test(fileName)) return 'gaming';
-  return 'misc';
+function categorizeSchedule(fileName) { if (/hotdeal/i.test(fileName)) return 'hotdeal'; if (/news/i.test(fileName)) return 'news'; if (/karaoke/i.test(fileName)) return 'entertainment'; if (/splatoon/i.test(fileName)) return 'gaming'; return 'misc'; }
+
+function mdTable(rows) {
+  const header = '| 이름 | 타입 | 필수 | 설명 |\n|---|---|---|---|\n';
+  return header + rows.map(r => `| ${r.name} | ${r.type} | ${r.required ? '✅' : ''} | ${r.description} |`).join('\n') + '\n';
 }
 
 function generateCommandDocs(commands) {
@@ -91,17 +97,17 @@ function generateCommandDocs(commands) {
   const commandsDir = path.join(DOCS_OUTPUT_DIR, 'commands');
   fs.mkdirSync(commandsDir, { recursive: true });
   fs.writeFileSync(path.join(commandsDir, 'index.md'), index);
-  fs.writeFileSync(path.join(commandsDir, '_category_.json'), JSON.stringify({ label: '명령어', position: 3, link: { type: 'generated-index', description: 'NIRA 슬래시 명령어 카테고리별 목록' } }, null, 2));
+  fs.writeFileSync(path.join(commandsDir, '_category_.json'), JSON.stringify({ label: '명령어', position: 2, link: { type: 'generated-index', description: 'NIRA 슬래시 명령어 카테고리별 목록' } }, null, 2));
 
   for (const [id, list] of Object.entries(grouped)) {
     const cat = CATEGORIES[id];
-    let md = `---\nsidebar_position: ${Object.keys(CATEGORIES).indexOf(id) + 2}\n---\n\n# ${cat.name}\n\n${cat.description}\n\n`;
+    let md = `---\nsidebar_position: ${Object.keys(CATEGORIES).indexOf(id) + 3}\n---\n\n# ${cat.name}\n\n${cat.description}\n\n`;
     list.forEach(c => {
       md += `## \`/${c.name}\`\n\n**설명:** ${c.description}\n\n`;
       if (c.options.length) {
-        md += `**옵션:**\n\n`;
-        c.options.forEach(o => { md += `- **\`${o.name}\`**${o.required ? ' *(필수)*' : ' *(선택)*'}: ${o.description}\n`; });
-        md += `\n`;
+        md += `**파라미터:**\n\n` + mdTable(c.options) + `\n`;
+      } else {
+        md += `**파라미터:** 없음\n\n`;
       }
       md += `**사용법:**\n\`\`\`\n/${c.name}`;
       const req = c.options.filter(o=>o.required); const opt = c.options.filter(o=>!o.required);
@@ -115,18 +121,12 @@ function generateCommandDocs(commands) {
   }
 }
 
-function cronToReadable(cron) {
-  if (cron === '0 9 * * *') return '매일 오전 9시';
-  if (cron === '0 * * * *') return '매시간 정각';
-  if (cron === '*/10 * * * *') return '10분마다';
-  if (cron === '0 0 * * 0') return '매주 일요일 자정';
-  return cron;
-}
+function cronToReadable(cron) { if (cron === '0 9 * * *') return '매일 오전 9시'; if (cron === '0 * * * *') return '매시간 정각'; if (cron === '*/10 * * * *') return '10분마다'; if (cron === '0 0 * * 0') return '매주 일요일 자정'; return cron; }
 
 function generateScheduleDocs(schedules) {
   const scheduleDir = path.join(DOCS_OUTPUT_DIR, 'schedule');
   fs.mkdirSync(scheduleDir, { recursive: true });
-  fs.writeFileSync(path.join(scheduleDir, '_category_.json'), JSON.stringify({ label: '자동 스케줄', position: 4, link: { type: 'generated-index', description: 'NIRA 자동 실행 스케줄 목록' } }, null, 2));
+  fs.writeFileSync(path.join(scheduleDir, '_category_.json'), JSON.stringify({ label: '자동 스케줄', position: 3, link: { type: 'generated-index', description: 'NIRA 자동 실행 스케줄 목록' } }, null, 2));
   let md = `---\nsidebar_position: 1\n---\n\n# 자동 스케줄\n\nNIRA가 정해진 시간에 자동으로 실행하는 작업들입니다.\n\n`;
   schedules.forEach(s => {
     md += `## ${s.name}\n\n**설명:** ${s.description}\n\n`;
@@ -142,13 +142,11 @@ function generateScheduleDocs(schedules) {
 
 function main() {
   console.log('🚀 NIRA 문서 자동 생성 시작...');
-  // commands
   if (fs.existsSync(COMMANDS_DIR)) {
     const files = fs.readdirSync(COMMANDS_DIR).filter(f=>f.endsWith('.js')).map(f=>path.join(COMMANDS_DIR,f));
     const commands = files.map(extractCommandInfo).filter(Boolean);
     commands.length ? generateCommandDocs(commands) : console.warn('⚠️ 명령어 파일이 없습니다.');
   } else { console.warn(`⚠️ 디렉토리 없음: ${COMMANDS_DIR}`); }
-  // schedule
   if (fs.existsSync(SCHEDULE_DIR)) {
     const files = fs.readdirSync(SCHEDULE_DIR).filter(f=>f.endsWith('.js')).map(f=>path.join(SCHEDULE_DIR,f));
     const schedules = files.map(extractScheduleInfo).filter(Boolean);

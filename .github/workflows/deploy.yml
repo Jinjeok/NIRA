@@ -35,10 +35,6 @@ jobs:
       - name: Install bot dependencies
         run: npm ci
 
-      # 봇 코드 테스트 (있다면)
-      # - name: Test bot
-      #   run: npm test --if-present
-
   # 2. 문서 빌드 및 배포 (GitHub Pages)
   docs:
     name: Deploy Docusaurus to GitHub Pages
@@ -103,8 +99,18 @@ jobs:
             echo "📁 Move to app directory"
             cd ${{ secrets.DEPLOY_PATH }}
 
-            echo "💾 Backup .env file"
-            if [ -f .env ]; then cp .env .env.backup; fi
+            echo "🔍 Check current permissions"
+            ls -la .env 2>/dev/null || echo "No .env file found"
+            
+            echo "💾 Backup .env file with permission fix"
+            if [ -f .env ]; then
+              # .env 권한을 임시로 변경하여 백업 가능하게 함
+              chmod 644 .env
+              cp .env .env.backup
+              echo "✅ .env backup created"
+            else
+              echo "⚠️ No .env file to backup"
+            fi
 
             echo "🛑 Stop NIRA service"
             sudo systemctl stop ${{ secrets.SERVICE_NAME }}
@@ -114,8 +120,17 @@ jobs:
             git checkout main
             git pull origin main
 
-            echo "🔐 Restore .env file"
-            if [ -f .env.backup ]; then mv -f .env.backup .env; fi
+            echo "🔐 Restore .env file with secure permissions"
+            if [ -f .env.backup ]; then
+              mv .env.backup .env
+              chmod 600 .env  # 보안 권한으로 복원
+              echo "✅ .env restored with secure permissions (600)"
+            else
+              echo "⚠️ No .env backup to restore"
+              if [ -f .env ]; then
+                chmod 600 .env  # 기존 .env 보안 권한 적용
+              fi
+            fi
 
             echo "📦 Install dependencies"
             npm ci --omit=dev

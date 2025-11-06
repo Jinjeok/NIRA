@@ -50,6 +50,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Node.js for Bot
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install bot dependencies
+        run: npm ci
+
+      - name: Generate command documentation
+        run: npm run generate-docs
+
       - name: Set up Node.js for Docs
         uses: actions/setup-node@v4
         with:

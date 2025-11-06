@@ -2,8 +2,6 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
-// This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
-
 const config: Config = {
   title: 'NIRA Docs',
   tagline: 'Discord Bot for useful daily tasks',
@@ -11,23 +9,18 @@ const config: Config = {
 
   future: { v4: true },
 
-  // GitHub Pages base settings
   url: 'https://jinjeok.github.io',
   baseUrl: '/NIRA/',
 
-  // GitHub pages deployment config.
-  organizationName: 'Jinjeok', // GitHub user/org name
-  projectName: 'NIRA',         // Repository name
+  organizationName: 'Jinjeok',
+  projectName: 'NIRA',
 
   trailingSlash: true,
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
 
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
-  },
+  i18n: { defaultLocale: 'en', locales: ['en'] },
 
   presets: [
     [
@@ -36,9 +29,9 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/Jinjeok/NIRA/edit/main/docs/',
-          routeBasePath: '/', // Serve docs at site's root
+          routeBasePath: '/',
         },
-        blog: false, // Disable blog functionality
+        blog: false,
         theme: { customCss: './src/css/custom.css' },
       } satisfies Preset.Options,
     ],

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * NIRA 명령어 및 스케줄 문서 자동 생성 스크립트 (ESM) - 파라미터 표 포함
+ * NIRA 명령어 및 스케줄 문서 자동 생성 스크립트 (ESM) - 파라미터 표/choices 포함
  */
 
 import fs from 'fs';
@@ -25,12 +25,24 @@ const CATEGORIES = {
   misc: { name: '기타', description: '기타 다양한 기능들', keywords: ['dday', 'years', 'emoji', 'mart', 'tax', 'gemini'] },
 };
 
+function extractChoices(block) {
+  const choices = [];
+  const addChoicesMatch = block.match(/\.addChoices\(([^)]*)\)/s);
+  if (addChoicesMatch) {
+    const inner = addChoicesMatch[1];
+    const objRegex = /\{\s*name:\s*['"`]([^'"`]+)['"`],\s*value:\s*['"`]([^'"`]+)['"`]\s*\}/g;
+    for (const m of inner.matchAll(objRegex)) choices.push({ name: m[1], value: m[2] });
+  }
+  return choices;
+}
+
 function extractCommandInfo(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
-    const fileName = path.basename(filePath, '.js');
-    const nameMatch = content.match(/\.setName\(['"`]([^'"`]+)['"`]\)/);
-    const descMatch = content.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/);
+    const fileBase = path.basename(filePath);
+    const fileName = fileBase.replace(/\.(js|ts|mjs)$/i, '');
+    const nameMatch = content.match(/\.setName\(['"`]([^'"`]+)['"`]\)/u);
+    const descMatch = content.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/u);
 
     const optionRegex = /(addStringOption|addIntegerOption|addBooleanOption|addUserOption|addChannelOption|addNumberOption)\(([^)]*)\)\s*=>\s*\{[\s\S]*?\}/g;
     const options = [];
@@ -46,13 +58,14 @@ function extractCommandInfo(filePath) {
       };
       const typeKey = match[1];
       const type = typeMap[typeKey] || 'string';
-      const optName = block.match(/\.setName\(['"`]([^'"`]+)['"`]\)/);
-      const optDesc = block.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/);
+      const optName = block.match(/\.setName\(['"`]([^'"`]+)['"`]\)/u);
+      const optDesc = block.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/u);
       const required = /\.setRequired\(true\)/.test(block);
-      if (optName && optDesc) options.push({ name: optName[1], description: optDesc[1], required, type });
+      const choices = extractChoices(block);
+      if (optName && optDesc) options.push({ name: optName[1], description: optDesc[1], required, type, choices });
     }
 
-    const exampleMatch = content.match(/\/\*\*?[\s\S]*?예시[\s\S]*?\*\//i) || content.match(/\/\/.*예시.*/);
+    const exampleMatch = content.match(/\/\*\*?[\s\S]*?예시[\s\S]*?\*\//iu) || content.match(/\/\/.*예시.*/u);
 
     return {
       fileName,
@@ -70,8 +83,9 @@ function categorizeCommand(fileName) { for (const [id, cat] of Object.entries(CA
 function extractScheduleInfo(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
-    const fileName = path.basename(filePath, '.js');
-    const cronMatches = [...content.matchAll(/['"`]([0-9*\/,-]+\s+[0-9*\/,-]+\s+[0-9*\/,-]+\s+[0-9*\/,-]+\s+[0-9*\/,-]+)['"`]/g)].map(m => m[1]);
+    const fileBase = path.basename(filePath);
+    const fileName = fileBase.replace(/\.(js|ts|mjs)$/i, '');
+    const cronMatches = [...content.matchAll(/['"`]([0-9*\/,\-]+\s+[0-9*\/,\-]+\s+[0-9*\/,\-]+\s+[0-9*\/,\-]+\s+[0-9*\/,\-]+)['"`]/g)].map(m => m[1]);
     const descMatch = content.match(/\/\*\*?([^*]+(?:\*(?!\/)[^*]*)*)\*\//);
     const lineCommentMatch = content.match(/\/\/\s*(.+)/);
     return { fileName, name: fileName.replace(/([A-Z])/g, ' $1').replace(/^./, s=>s.toUpperCase()), description: descMatch?descMatch[1].trim(): (lineCommentMatch?lineCommentMatch[1].trim():'설명 없음'), cronPatterns: cronMatches, category: categorizeSchedule(fileName) };
@@ -81,13 +95,13 @@ function extractScheduleInfo(filePath) {
 function categorizeSchedule(fileName) { if (/hotdeal/i.test(fileName)) return 'hotdeal'; if (/news/i.test(fileName)) return 'news'; if (/karaoke/i.test(fileName)) return 'entertainment'; if (/splatoon/i.test(fileName)) return 'gaming'; return 'misc'; }
 
 function mdTable(rows) {
-  const header = '| 이름 | 타입 | 필수 | 설명 |\n|---|---|---|---|\n';
-  return header + rows.map(r => `| ${r.name} | ${r.type} | ${r.required ? '✅' : ''} | ${r.description} |`).join('\n') + '\n';
+  const header = '| 이름 | 타입 | 필수 | 설명 | 선택지 |\n|---|---|---|---|---|\n';
+  return header + rows.map(r => `| ${r.name} | ${r.type} | ${r.required ? '✅' : ''} | ${r.description} | ${r.choices?.length ? r.choices.map(c=>`${c.name}(${c.value})`).join('<br/>') : ''} |`).join('\n') + '\n';
 }
 
 function generateCommandDocs(commands) {
   const grouped = commands.reduce((acc, c) => { (acc[c.category] ||= []).push(c); return acc; }, {});
-  let index = `---\nsidebar_position: 1\n---\n\n# 명령어 목록\n\nNIRA가 제공하는 모든 슬래시 명령어입니다.\n\n`;
+  let index = `---\nsiderbar_position: 1\n---\n\n# 명령어 목록\n\nNIRA가 제공하는 모든 슬래시 명령어입니다.\n\n`;
   for (const [id, list] of Object.entries(grouped)) {
     const cat = CATEGORIES[id];
     index += `## ${cat.name}\n\n${cat.description}\n\n`;
@@ -140,18 +154,26 @@ function generateScheduleDocs(schedules) {
   fs.writeFileSync(path.join(scheduleDir, 'index.md'), md);
 }
 
+function collectFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  const all = fs.readdirSync(dir);
+  const exts = ['.js', '.ts', '.mjs'];
+  return all.filter(f => exts.includes(path.extname(f))).map(f => path.join(dir, f));
+}
+
 function main() {
   console.log('🚀 NIRA 문서 자동 생성 시작...');
-  if (fs.existsSync(COMMANDS_DIR)) {
-    const files = fs.readdirSync(COMMANDS_DIR).filter(f=>f.endsWith('.js')).map(f=>path.join(COMMANDS_DIR,f));
-    const commands = files.map(extractCommandInfo).filter(Boolean);
+  const cmdFiles = collectFiles(COMMANDS_DIR);
+  if (cmdFiles.length) {
+    const commands = cmdFiles.map(extractCommandInfo).filter(Boolean);
     commands.length ? generateCommandDocs(commands) : console.warn('⚠️ 명령어 파일이 없습니다.');
-  } else { console.warn(`⚠️ 디렉토리 없음: ${COMMANDS_DIR}`); }
-  if (fs.existsSync(SCHEDULE_DIR)) {
-    const files = fs.readdirSync(SCHEDULE_DIR).filter(f=>f.endsWith('.js')).map(f=>path.join(SCHEDULE_DIR,f));
-    const schedules = files.map(extractScheduleInfo).filter(Boolean);
+  } else { console.warn(`⚠️ 디렉토리/파일 없음: ${COMMANDS_DIR}`); }
+
+  const schFiles = collectFiles(SCHEDULE_DIR);
+  if (schFiles.length) {
+    const schedules = schFiles.map(extractScheduleInfo).filter(Boolean);
     schedules.length ? generateScheduleDocs(schedules) : console.warn('⚠️ 스케줄 파일이 없습니다.');
-  } else { console.warn(`⚠️ 디렉토리 없음: ${SCHEDULE_DIR}`); }
+  } else { console.warn(`⚠️ 디렉토리/파일 없음: ${SCHEDULE_DIR}`); }
   console.log('🎉 문서 생성 완료!');
 }
 

@@ -16,7 +16,7 @@
     "yarn": "^1.22.22"
   },
   "name": "nira",
-  "description": "# TODO ## 기능 관련 - [ ] BOTY 마이그레이션 - [ ] 선택 기능 추가 - [ ] 확률 선택 기능 추가 - [ ] 주가 기능 추가 - [ ] 데이터베이스에 연결 필요 - [ ] .env 에 API 키 넣어두기 - [ ]",
+  "description": "Discord Bot for useful daily tasks",
   "version": "0.0.1",
   "main": "index.js",
   "type": "module",
@@ -28,13 +28,17 @@
     "dev": "nodemon -e js --exec \"yarn deploy-commands && node index.js\"",
     "dev2": "nodemon index.js",
     "deploy": "node deploy-commands.js",
-    "delete-commands": "node delete-commands.js"
+    "delete-commands": "node delete-commands.js",
+    "generate-docs": "node scripts/generate-docs.js",
+    "docs:generate": "npm run generate-docs",
+    "docs:dev": "cd docs && npm start",
+    "docs:build": "cd docs && npm run build"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Jinjeok/NIRA.git"
   },
-  "author": "",
+  "author": "Jinjeok",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Jinjeok/NIRA/issues"

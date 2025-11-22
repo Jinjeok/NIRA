@@ -13,7 +13,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 export default {
     data: new SlashCommandBuilder()
         .setName('제미나이')
-        .setDescription('Gemini AI에게 질문합니다.')
+        .setDescription('Gemini AI에게 질문합니다. (대화 내용은 1시간동안 유지됩니다.)')
         .addStringOption(option =>
             option.setName('프롬프트')
                 .setDescription('Gemini에게 전달할 프롬프트')
@@ -24,7 +24,7 @@ export default {
                 .setRequired(false))
         .addBooleanOption(option =>
             option.setName('세션')
-                .setDescription('대화 세션을 유지합니다 (true/false, 기본: false)')
+                .setDescription('대화 세션을 유지합니다 (true/false, 기본: true)')
                 .setRequired(false))
         .addBooleanOption(option =>
             option.setName('세션초기화')
@@ -35,7 +35,7 @@ export default {
         
         const prompt = interaction.options.getString('프롬프트');
         const imageCreation = interaction.options.getBoolean('이미지생성') ?? false;
-        const useSession = interaction.options.getBoolean('세션') ?? false;
+        const useSession = interaction.options.getBoolean('세션') ?? true;
         const resetSession = interaction.options.getBoolean('세션초기화') ?? false;
         const userId = interaction.user.id;
 

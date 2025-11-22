@@ -58,6 +58,13 @@ async function main() {
                         return;
                     }
                 }
+                if (cid.startsWith('gemini_prev:') || cid.startsWith('gemini_next:')) {
+                    const gemini = interaction.client.commands.get('제미나이');
+                    if (gemini?.handleComponent) {
+                        await gemini.handleComponent(interaction);
+                        return;
+                    }
+                }
             }
 
             if (!interaction.isChatInputCommand()) return;

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { GoogleGenAI, Modality } from "@google/genai";
@@ -9,6 +9,9 @@ import { loadSession, saveSession, deleteSession } from '../utils/sessionManager
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+const paginationCache = new Map();
+const CACHE_TTL = 60 * 1000; // 1분
 
 export default {
     data: new SlashCommandBuilder()
@@ -43,9 +46,9 @@ export default {
         if (resetSession) {
             const deleted = await deleteSession(userId);
             if (deleted) {
-                await interaction.editReply({ content: '세션이 초기화되었습니다.', ephemeral: true });
+                await interaction.editReply({ content: '세션이 초기화되었습니다.', flags: MessageFlags.Ephemeral });
             } else {
-                await interaction.editReply({ content: '초기화할 세션이 없습니다.', ephemeral: true });
+                await interaction.editReply({ content: '초기화할 세션이 없습니다.', flags: MessageFlags.Ephemeral });
             }
             return;
         }
@@ -89,23 +92,60 @@ export default {
                     logger.info(`[GeminiCommand] Saved session for user ${userId}`);
                 }
                 
+                const chunks = [];
+                for (let i = 0; i < responseText.length; i += 750) {
+                    chunks.push(responseText.substring(i, i + 750));
+                }
+
                 const embed = new EmbedBuilder()
                     .setColor(0x4285F4)
                     .setTitle('Gemini AI 처리 결과')
-                    .setDescription(prompt.length > 240 ? prompt.substring(0, 237) + "..." : prompt)
+                    .setDescription(prompt.length > 4096 ? prompt.substring(0, 4093) + "..." : prompt)
                     .addFields({ 
-                        name: 'Gemini AI의 답변', 
-                        value: responseText && typeof responseText === 'string' ? 
-                            (responseText.length > 1024 ? responseText.substring(0, 1021) + "..." : responseText) : 
-                            "응답을 받지 못했습니다." 
+                        name: 'Gemini의 답변', 
+                        value: chunks[0]
                     })
-                    .setFooter({ text: useSession ? 'Powered by Google Gemini (세션 모드)' : 'Powered by Google Gemini' })
                     .setTimestamp();
+
+                if (chunks.length > 1) {
+                    embed.setFooter({ text: `${useSession ? 'Powered by Google Gemini (세션 모드)' : 'Powered by Google Gemini'} • 1/${chunks.length} 페이지` });
                     
-                await interaction.editReply({ embeds: [embed] });
+                    paginationCache.set(interaction.id, {
+                        chunks,
+                        page: 0,
+                        timestamp: Date.now(),
+                        prompt,
+                        useSession
+                    });
+
+                    const row = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`gemini_prev:${interaction.id}`)
+                                .setLabel('이전')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId(`gemini_next:${interaction.id}`)
+                                .setLabel('다음')
+                                .setStyle(ButtonStyle.Primary)
+                                .setDisabled(false)
+                        );
+
+                    await interaction.editReply({ embeds: [embed], components: [row] });
+
+                    setTimeout(() => {
+                        paginationCache.delete(interaction.id);
+                        interaction.editReply({ components: [] }).catch(() => {});
+                    }, CACHE_TTL);
+
+                } else {
+                    embed.setFooter({ text: useSession ? 'Powered by Google Gemini (세션 모드)' : 'Powered by Google Gemini' });
+                    await interaction.editReply({ embeds: [embed] });
+                }
             } catch (error) {
                 logger.error(`Gemini API 처리 중 오류: ${error.message}`, error);
-                await interaction.editReply({ content: 'Gemini AI 처리 중 오류가 발생했습니다. 모델 설정이나 API 키를 확인해주세요.', ephemeral: true });
+                await interaction.editReply({ content: 'Gemini AI 처리 중 오류가 발생했습니다. 모델 설정이나 API 키를 확인해주세요.', flags: MessageFlags.Ephemeral });
             }
         } else {
             // 이미지 생성 모드 - gemini-2.0-flash-lite 사용
@@ -158,14 +198,14 @@ export default {
                 } else {
                     const textPart = response.candidates[0].content.parts.find(p => p.text);
                     if (textPart && textPart.text) {
-                        await interaction.editReply({ content: `이미지 생성을 시도했지만, 모델이 대신 텍스트를 반환했습니다:\n\n>>> ${textPart.text.substring(0, 1800)}`, ephemeral: true });
+                        await interaction.editReply({ content: `이미지 생성을 시도했지만, 모델이 대신 텍스트를 반환했습니다:\n\n>>> ${textPart.text.substring(0, 1800)}`, flags: MessageFlags.Ephemeral });
                     } else {
-                        await interaction.editReply({ content: 'Gemini로부터 이미지 데이터를 받지 못했습니다. 모델이 이미지 생성을 지원하는지 또는 프롬프트가 적절한지 확인해주세요.', ephemeral: true });
+                        await interaction.editReply({ content: 'Gemini로부터 이미지 데이터를 받지 못했습니다. 모델이 이미지 생성을 지원하는지 또는 프롬프트가 적절한지 확인해주세요.', flags: MessageFlags.Ephemeral });
                     }
                 }
             } catch (error) {
                 logger.error(`Gemini API 처리 중 오류: ${error.message}`, error);
-                await interaction.editReply({ content: 'Gemini AI 처리 중 오류가 발생했습니다. 모델 설정이나 API 키를 확인해주세요.', ephemeral: true });
+                await interaction.editReply({ content: 'Gemini AI 처리 중 오류가 발생했습니다. 모델 설정이나 API 키를 확인해주세요.', flags: MessageFlags.Ephemeral });
             } finally {
                 if (await fs.access(tempImagePath).then(() => true).catch(() => false)) {
                     try {
@@ -177,5 +217,52 @@ export default {
                 }
             }
         }
+    },
+
+    async handleComponent(interaction) {
+        const [action, originalInteractionId] = interaction.customId.split(':');
+        const cacheData = paginationCache.get(originalInteractionId);
+
+        if (!cacheData) {
+            await interaction.update({ content: '세션이 만료되었습니다.', components: [], embeds: [] });
+            return;
+        }
+
+        let { chunks, page, prompt, useSession } = cacheData;
+        
+        if (action === 'gemini_prev') {
+            page = Math.max(0, page - 1);
+        } else if (action === 'gemini_next') {
+            page = Math.min(chunks.length - 1, page + 1);
+        }
+
+        cacheData.page = page;
+        
+        const embed = new EmbedBuilder()
+            .setColor(0x4285F4)
+            .setTitle('Gemini AI 처리 결과')
+            .setDescription(prompt.length > 4096 ? prompt.substring(0, 4093) + "..." : prompt)
+            .addFields({ 
+                name: 'Gemini의 답변', 
+                value: chunks[page]
+            })
+            .setFooter({ text: `${useSession ? 'Powered by Google Gemini (세션 모드)' : 'Powered by Google Gemini'} • ${page + 1}/${chunks.length} 페이지` })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`gemini_prev:${originalInteractionId}`)
+                    .setLabel('이전')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(page === 0),
+                new ButtonBuilder()
+                    .setCustomId(`gemini_next:${originalInteractionId}`)
+                    .setLabel('다음')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(page === chunks.length - 1)
+            );
+
+        await interaction.update({ embeds: [embed], components: [row] });
     },
 };

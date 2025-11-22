@@ -108,7 +108,7 @@ export default {
                 await interaction.editReply({ content: 'Gemini AI 처리 중 오류가 발생했습니다. 모델 설정이나 API 키를 확인해주세요.', ephemeral: true });
             }
         } else {
-            // 이미지 생성 모드
+            // 이미지 생성 모드 - gemini-2.0-flash-lite 사용
             const tempDir = path.join(__dirname, '..', '..', 'temp');
             const tempImageFileName = `gemini-image-${Date.now()}.png`;
             const tempImagePath = path.join(tempDir, tempImageFileName);
@@ -126,7 +126,7 @@ export default {
                 }
 
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash-preview-image-generation',
+                    model: 'gemini-2.0-flash-lite', // 이미지 생성용 모델
                     contents: prompt,
                     config: {
                         responseModalities: [Modality.TEXT, Modality.IMAGE],

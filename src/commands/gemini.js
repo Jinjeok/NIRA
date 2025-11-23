@@ -23,7 +23,6 @@ export default {
                 .setRequired(false)
                 .addChoices(
                     { name: 'Pro (고성능, 기본값)', value: 'pro' },
-                    { name: 'Flash (빠른 응답)', value: 'flash' },
                     { name: 'Flash Lite (경량)', value: 'flash-lite' }
                 ))
         .addStringOption(option =>
@@ -55,7 +54,6 @@ export default {
         // 모델 선택에 따른 모델명 매핑
         const modelMap = {
             'pro': 'gemini-2.5-pro',
-            'flash': 'gemini-2.5-flash',
             'flash-lite': 'gemini-2.5-flash-lite'
         };
 
@@ -101,7 +99,6 @@ export default {
                         model: primaryModel,
                         contents: history,
                     };
-
                     // Pro 모델인 경우에만 토큰 제한 설정
                     if (modelChoice === 'pro') {
                         config.config = {
@@ -109,7 +106,6 @@ export default {
                             temperature: 1.0,
                         };
                     }
-
                     response = await ai.models.generateContent(config);
                 } catch (primaryError) {
                     // 선택한 모델 실패 시 flash-lite로 재시도

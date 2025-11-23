@@ -18,6 +18,15 @@ export default {
         .setName('제미나이')
         .setDescription('Gemini AI에게 질문합니다. (대화 내용은 1시간동안 유지됩니다.)')
         .addStringOption(option =>
+            option.setName('모델')
+                .setDescription('사용할 Gemini 모델을 선택합니다 (기본: pro)')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'Pro (고성능, 기본값)', value: 'pro' },
+                    { name: 'Flash (빠른 응답)', value: 'flash' },
+                    { name: 'Flash Lite (경량)', value: 'flash-lite' }
+                ))
+        .addStringOption(option =>
             option.setName('프롬프트')
                 .setDescription('Gemini에게 전달할 프롬프트')
                 .setRequired(true))
@@ -36,11 +45,19 @@ export default {
     async execute(interaction) {
         await interaction.deferReply();
         
+        const modelChoice = interaction.options.getString('모델') ?? 'pro';
         const prompt = interaction.options.getString('프롬프트');
         const imageCreation = interaction.options.getBoolean('이미지생성') ?? false;
         const useSession = interaction.options.getBoolean('세션') ?? true;
         const resetSession = interaction.options.getBoolean('세션초기화') ?? false;
         const userId = interaction.user.id;
+
+        // 모델 선택에 따른 모델명 매핑
+        const modelMap = {
+            'pro': 'gemini-2.5-pro',
+            'flash': 'gemini-2.5-flash',
+            'flash-lite': 'gemini-2.5-flash-lite'
+        };
 
         // 세션 초기화 요청 처리
         if (resetSession) {
@@ -73,22 +90,30 @@ export default {
                 });
 
                 let response;
-                let modelUsed = 'gemini-2.5-pro';
+                const primaryModel = modelMap[modelChoice];
+                let modelUsed = primaryModel;
                 
-                // Gemini API 호출 - 먼저 gemini-2.5-pro 시도
+                // Gemini API 호출 - 선택한 모델로 먼저 시도
                 try {
-                    logger.info('[GeminiCommand] Attempting to use gemini-2.5-pro');
-                    response = await ai.models.generateContent({
-                        model: 'gemini-2.5-pro',
+                    logger.info(`[GeminiCommand] Attempting to use ${primaryModel}`);
+                    
+                    const config = {
+                        model: primaryModel,
                         contents: history,
-                        config: {
+                    };
+
+                    // Pro 모델인 경우에만 토큰 제한 설정
+                    if (modelChoice === 'pro') {
+                        config.config = {
                             maxOutputTokens: 8192,
                             temperature: 1.0,
-                        },
-                    });
-                } catch (proError) {
-                    // pro 모델 실패 시 flash-lite로 재시도
-                    logger.warn(`[GeminiCommand] gemini-2.5-pro failed: ${proError.message}, falling back to gemini-2.5-flash-lite`);
+                        };
+                    }
+
+                    response = await ai.models.generateContent(config);
+                } catch (primaryError) {
+                    // 선택한 모델 실패 시 flash-lite로 재시도
+                    logger.warn(`[GeminiCommand] ${primaryModel} failed: ${primaryError.message}, falling back to gemini-2.5-flash-lite`);
                     modelUsed = 'gemini-2.5-flash-lite';
                     response = await ai.models.generateContent({
                         model: 'gemini-2.5-flash-lite',

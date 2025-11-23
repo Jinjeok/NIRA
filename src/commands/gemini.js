@@ -11,12 +11,12 @@ const __dirname = path.dirname(__filename);
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const paginationCache = new Map();
-const CACHE_TTL = 60 * 1000; // 1분
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
 
 export default {
     data: new SlashCommandBuilder()
         .setName('제미나이')
-        .setDescription('Gemini AI에게 질문합니다. (대화 내용은 1시간동안 유지됩니다.)')
+        .setDescription('Gemini AI에게 질문합니다. (대화 내용은 24시간동안 유지됩니다.)')
         .addStringOption(option =>
             option.setName('프롬프트')
                 .setDescription('Gemini에게 전달할 프롬프트')

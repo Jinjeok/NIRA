@@ -6,7 +6,7 @@ import logger from '../logger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SESSIONS_DIR = path.join(__dirname, '..', '..', 'data', 'gemini-sessions');
-const SESSION_TIMEOUT = 60 * 60 * 1000; // 1시간 (밀리초)
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
 
 // 세션 디렉토리 초기화
 async function initSessionsDir() {

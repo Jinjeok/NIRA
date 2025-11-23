@@ -72,11 +72,29 @@ export default {
                     parts: [{ text: prompt }]
                 });
 
-                // Gemini API 호출
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash-lite',
-                    contents: history,
-                });
+                let response;
+                let modelUsed = 'gemini-2.5-pro';
+                
+                // Gemini API 호출 - 먼저 gemini-2.5-pro 시도
+                try {
+                    logger.info('[GeminiCommand] Attempting to use gemini-2.5-pro');
+                    response = await ai.models.generateContent({
+                        model: 'gemini-2.5-pro',
+                        contents: history,
+                        config: {
+                            maxOutputTokens: 8192,
+                            temperature: 1.0,
+                        },
+                    });
+                } catch (proError) {
+                    // pro 모델 실패 시 flash-lite로 재시도
+                    logger.warn(`[GeminiCommand] gemini-2.5-pro failed: ${proError.message}, falling back to gemini-2.5-flash-lite`);
+                    modelUsed = 'gemini-2.5-flash-lite';
+                    response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash-lite',
+                        contents: history,
+                    });
+                }
 
                 const responseText = response.text;
                 
@@ -108,14 +126,15 @@ export default {
                     .setTimestamp();
 
                 if (chunks.length > 1) {
-                    embed.setFooter({ text: `${useSession ? 'Powered by Google Gemini (세션 모드)' : 'Powered by Google Gemini'} • 1/${chunks.length} 페이지` });
+                    embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`} • 1/${chunks.length} 페이지` });
                     
                     paginationCache.set(interaction.id, {
                         chunks,
                         page: 0,
                         timestamp: Date.now(),
                         prompt,
-                        useSession
+                        useSession,
+                        modelUsed
                     });
 
                     const row = new ActionRowBuilder()
@@ -140,7 +159,7 @@ export default {
                     }, CACHE_TTL);
 
                 } else {
-                    embed.setFooter({ text: useSession ? 'Powered by Google Gemini (세션 모드)' : 'Powered by Google Gemini' });
+                    embed.setFooter({ text: useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})` });
                     await interaction.editReply({ embeds: [embed] });
                 }
             } catch (error) {
@@ -228,7 +247,7 @@ export default {
             return;
         }
 
-        let { chunks, page, prompt, useSession } = cacheData;
+        let { chunks, page, prompt, useSession, modelUsed } = cacheData;
         
         if (action === 'gemini_prev') {
             page = Math.max(0, page - 1);
@@ -246,7 +265,7 @@ export default {
                 name: 'Gemini의 답변', 
                 value: chunks[page]
             })
-            .setFooter({ text: `${useSession ? 'Powered by Google Gemini (세션 모드)' : 'Powered by Google Gemini'} • ${page + 1}/${chunks.length} 페이지` })
+            .setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`} • ${page + 1}/${chunks.length} 페이지` })
             .setTimestamp();
 
         const row = new ActionRowBuilder()

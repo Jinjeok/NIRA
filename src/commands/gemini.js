@@ -18,6 +18,10 @@ export default {
         .setName('제미나이')
         .setDescription('Gemini AI에게 질문합니다. (대화 내용은 1시간동안 유지됩니다.)')
         .addStringOption(option =>
+            option.setName('프롬프트')
+                .setDescription('Gemini에게 전달할 프롬프트')
+                .setRequired(true))
+        .addStringOption(option =>
             option.setName('모델')
                 .setDescription('사용할 Gemini 모델을 선택합니다 (기본: pro)')
                 .setRequired(false)
@@ -25,10 +29,6 @@ export default {
                     { name: 'Pro (고성능, 기본값)', value: 'pro' },
                     { name: 'Flash Lite (경량)', value: 'flash-lite' }
                 ))
-        .addStringOption(option =>
-            option.setName('프롬프트')
-                .setDescription('Gemini에게 전달할 프롬프트')
-                .setRequired(true))
         .addBooleanOption(option =>
             option.setName('이미지생성')
                 .setDescription('Gemini에게 이미지 생성을 요청합니다 (true/false).')

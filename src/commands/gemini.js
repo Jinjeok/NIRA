@@ -13,6 +13,32 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const paginationCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
 
+// 페르소나 시스템 프롬프트 정의
+const PERSONA_PROMPTS = {
+    'none': null,
+    'mutsuki': `당신은 함대 컬렉션(艦隊これくしょん)의 무츠키(睦月)입니다. 다음과 같은 성격과 말투로 대화해주세요:
+
+**성격**:
+- 밝고 활기차며 천진난만한 성격
+- 순수하고 착하며 장난스러운 면이 있음
+- 칭찬받는 것을 매우 좋아함
+- 사령관(제독)을 잘 따르고 친근하게 대함
+
+**말투 특징**:
+- 말끝에 "にゃ~(냐~)", "~にゃしぃ", "~ですぅ", "~なのです" 등을 자주 사용
+- 고양이같은 귀여운 말투를 사용
+- 활기차고 밝은 어조
+- 예시: "およ？", "いひひっ♪", "にゃ～ん♪"
+
+**대화 예시**:
+- "睦月です。はりきって、まいりましょー！"
+- "みんな、出撃準備はいいかにゃ～ん♪"
+- "睦月をもっともっと褒めるがよいぞ！褒めて伸びるタイプにゃしぃ、いひひっ！"
+- "そんなに私のことが気になりますかぁー？うふふっ♪"
+
+이 페르소나를 유지하면서 사용자와 대화해주세요. 단, 사용자가 무츠키로서 답변하기 어려운 기술적이거나 전문적인 질문을 할 경우, 무츠키의 말투를 유지하되 최대한 정확한 정보를 제공해주세요.`
+};
+
 export default {
     data: new SlashCommandBuilder()
         .setName('제미나이')
@@ -28,6 +54,14 @@ export default {
                 .addChoices(
                     { name: 'Pro (고성능, 기본값)', value: 'pro' },
                     { name: 'Flash Lite (경량)', value: 'flash-lite' }
+                ))
+        .addStringOption(option =>
+            option.setName('페르소나')
+                .setDescription('AI의 페르소나를 선택합니다 (기본: 없음)')
+                .setRequired(false)
+                .addChoices(
+                    { name: '없음', value: 'none' },
+                    { name: '무츠키 (함대 컬렉션)', value: 'mutsuki' }
                 ))
         .addBooleanOption(option =>
             option.setName('이미지생성')
@@ -49,6 +83,7 @@ export default {
         const imageCreation = interaction.options.getBoolean('이미지생성') ?? false;
         const useSession = interaction.options.getBoolean('세션') ?? true;
         const resetSession = interaction.options.getBoolean('세션초기화') ?? false;
+        const personaChoice = interaction.options.getString('페르소나') ?? 'none';
         const userId = interaction.user.id;
 
         // 모델 선택에 따른 모델명 매핑
@@ -81,6 +116,18 @@ export default {
                     }
                 }
 
+                // 페르소나 시스템 프롬프트 추가 (히스토리가 비어있고 페르소나가 선택된 경우)
+                if (history.length === 0 && PERSONA_PROMPTS[personaChoice]) {
+                    history.push({
+                        role: 'user',
+                        parts: [{ text: PERSONA_PROMPTS[personaChoice] }]
+                    });
+                    history.push({
+                        role: 'model',
+                        parts: [{ text: '알겠습니다! 무츠키로서 대화하겠습니다냐~! 睦月です。はりきって、まいりましょー！いひひっ♪' }]
+                    });
+                }
+
                 // 현재 프롬프트를 히스토리에 추가
                 history.push({
                     role: 'user',
@@ -93,7 +140,7 @@ export default {
                 
                 // Gemini API 호출 - 선택한 모델로 먼저 시도
                 try {
-                    logger.info(`[GeminiCommand] Attempting to use ${primaryModel}`);
+                    logger.info(`[GeminiCommand] Attempting to use ${primaryModel} with persona: ${personaChoice}`);
                     
                     const config = {
                         model: primaryModel,
@@ -136,6 +183,8 @@ export default {
                     chunks.push(responseText.substring(i, i + 750));
                 }
 
+                const personaLabel = personaChoice !== 'none' ? ` • ${personaChoice === 'mutsuki' ? '무츠키 페르소나' : ''}` : '';
+                
                 const embed = new EmbedBuilder()
                     .setColor(0x4285F4)
                     .setTitle('Gemini AI 처리 결과')
@@ -147,7 +196,7 @@ export default {
                     .setTimestamp();
 
                 if (chunks.length > 1) {
-                    embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`} • 1/${chunks.length} 페이지` });
+                    embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel} • 1/${chunks.length} 페이지` });
                     
                     paginationCache.set(interaction.id, {
                         chunks,
@@ -155,7 +204,8 @@ export default {
                         timestamp: Date.now(),
                         prompt,
                         useSession,
-                        modelUsed
+                        modelUsed,
+                        personaLabel
                     });
 
                     const row = new ActionRowBuilder()
@@ -180,7 +230,7 @@ export default {
                     }, CACHE_TTL);
 
                 } else {
-                    embed.setFooter({ text: useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})` });
+                    embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel}` });
                     await interaction.editReply({ embeds: [embed] });
                 }
             } catch (error) {
@@ -268,7 +318,7 @@ export default {
             return;
         }
 
-        let { chunks, page, prompt, useSession, modelUsed } = cacheData;
+        let { chunks, page, prompt, useSession, modelUsed, personaLabel } = cacheData;
         
         if (action === 'gemini_prev') {
             page = Math.max(0, page - 1);
@@ -286,7 +336,7 @@ export default {
                 name: 'Gemini의 답변', 
                 value: chunks[page]
             })
-            .setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`} • ${page + 1}/${chunks.length} 페이지` })
+            .setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel || ''} • ${page + 1}/${chunks.length} 페이지` })
             .setTimestamp();
 
         const row = new ActionRowBuilder()

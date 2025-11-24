@@ -5,7 +5,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import logger from '../logger.js';
 import { fileURLToPath } from 'node:url';
 import { loadSession, saveSession, deleteSession } from '../utils/sessionManager.js';
-import { saveConversation, loadConversation, startCleanupSchedule } from '../utils/conversationManager.js';
+import { saveConversation, loadConversation } from '../utils/conversationManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Start cleanup schedule
-startCleanupSchedule();
+// startCleanupSchedule(); // Moved to index.js to prevent hang in deploy-commands
 
 // const paginationCache = new Map(); // Removed in favor of file persistence
 // const CACHE_TTL = 24 * 60 * 60 * 1000; // Handled by ConversationManager

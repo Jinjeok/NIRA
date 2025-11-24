@@ -4,6 +4,7 @@ import dailyHotdealTask from './schedule/dailyHotdealSender.js';
 import splatoonTask from './schedule/splatoonSchedule.js';
 import karaokeSender from './schedule/karaokeSender.js';
 import { cleanupExpiredSessions } from './utils/sessionManager.js';
+import { cleanupConversations } from './utils/conversationManager.js';
 
 function initScheduler(client) {
   // karaoke image task
@@ -25,6 +26,14 @@ function initScheduler(client) {
   cron.schedule(SESSION_CLEANUP_CRON, async () => {
     logger.info(`[Scheduler] Gemini Session Cleanup tick: ${new Date().toLocaleString()}`);
     await cleanupExpiredSessions();
+  }, { scheduled: true, timezone: 'Asia/Seoul' });
+
+  // Gemini conversation cleanup task - 매 1시간마다 만료된 대화 정리
+  const CONVERSATION_CLEANUP_CRON = '0 * * * *'; // 매시 정각에 실행
+  logger.info(`[Scheduler] Gemini Conversation Cleanup scheduled '${CONVERSATION_CLEANUP_CRON}' (Asia/Seoul)`);
+  cron.schedule(CONVERSATION_CLEANUP_CRON, async () => {
+    logger.info(`[Scheduler] Gemini Conversation Cleanup tick: ${new Date().toLocaleString()}`);
+    await cleanupConversations();
   }, { scheduled: true, timezone: 'Asia/Seoul' });
 
   // Hotdeal: send once at 09:00, then edit hourly

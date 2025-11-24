@@ -49,33 +49,29 @@ export async function deleteConversation(interactionId) {
     }
 }
 
-export function startCleanupSchedule() {
-    // Run every hour
-    cron.schedule('0 * * * *', async () => {
-        logger.info('[ConversationManager] Starting cleanup...');
-        try {
-            const files = await fs.readdir(CONVERSATION_DIR);
-            const now = Date.now();
-            const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-            let deletedCount = 0;
+export async function cleanupConversations() {
+    logger.info('[ConversationManager] Starting cleanup...');
+    try {
+        const files = await fs.readdir(CONVERSATION_DIR);
+        const now = Date.now();
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+        let deletedCount = 0;
 
-            for (const file of files) {
-                if (!file.endsWith('.json')) continue;
-                
-                const filePath = path.join(CONVERSATION_DIR, file);
-                const stats = await fs.stat(filePath);
-                
-                if (now - stats.mtimeMs > ONE_DAY_MS) {
-                    await fs.unlink(filePath);
-                    deletedCount++;
-                }
+        for (const file of files) {
+            if (!file.endsWith('.json')) continue;
+            
+            const filePath = path.join(CONVERSATION_DIR, file);
+            const stats = await fs.stat(filePath);
+            
+            if (now - stats.mtimeMs > ONE_DAY_MS) {
+                await fs.unlink(filePath);
+                deletedCount++;
             }
-            if (deletedCount > 0) {
-                logger.info(`[ConversationManager] Cleanup complete. Deleted ${deletedCount} old conversations.`);
-            }
-        } catch (error) {
-            logger.error(`[ConversationManager] Cleanup failed: ${error.message}`);
         }
-    });
-    logger.info('[ConversationManager] Cleanup schedule started.');
+        if (deletedCount > 0) {
+            logger.info(`[ConversationManager] Cleanup complete. Deleted ${deletedCount} old conversations.`);
+        }
+    } catch (error) {
+        logger.error(`[ConversationManager] Cleanup failed: ${error.message}`);
+    }
 }

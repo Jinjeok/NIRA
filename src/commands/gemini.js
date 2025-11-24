@@ -5,13 +5,17 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import logger from '../logger.js';
 import { fileURLToPath } from 'node:url';
 import { loadSession, saveSession, deleteSession } from '../utils/sessionManager.js';
+import { saveConversation, loadConversation, startCleanupSchedule } from '../utils/conversationManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const paginationCache = new Map();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
+// Start cleanup schedule
+startCleanupSchedule();
+
+// const paginationCache = new Map(); // Removed in favor of file persistence
+// const CACHE_TTL = 24 * 60 * 60 * 1000; // Handled by ConversationManager
 
 const PERSONA_PROMPTS = {
     'none': null,
@@ -157,6 +161,7 @@ export default {
                 for (let i = 0; i < responseText.length; i += 750) {
                     chunks.push(responseText.substring(i, i + 750));
                 }
+
                 const personaLabel = (personaChoice !== 'none' && PERSONA_PROMPTS[personaChoice]) ? ` • ${PERSONA_PROMPTS[personaChoice].label}` : '';
                 const embed = new EmbedBuilder()
                     .setColor(0x4285F4)
@@ -166,7 +171,8 @@ export default {
                     .setTimestamp();
                 if (chunks.length > 1) {
                     embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel} • 1/${chunks.length} 페이지` });
-                    paginationCache.set(interaction.id, {
+                    
+                    await saveConversation(interaction.id, {
                         chunks,
                         page: 0,
                         timestamp: Date.now(),
@@ -175,24 +181,31 @@ export default {
                         modelUsed,
                         personaLabel
                     });
+
                     const row = new ActionRowBuilder()
                         .addComponents(
                             new ButtonBuilder()
+                                .setCustomId(`gemini_first:${interaction.id}`)
+                                .setLabel('처음')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
                                 .setCustomId(`gemini_prev:${interaction.id}`)
                                 .setLabel('이전')
-                                .setStyle(ButtonStyle.Secondary)
+                                .setStyle(ButtonStyle.Primary)
                                 .setDisabled(true),
                             new ButtonBuilder()
                                 .setCustomId(`gemini_next:${interaction.id}`)
                                 .setLabel('다음')
                                 .setStyle(ButtonStyle.Primary)
+                                .setDisabled(false),
+                            new ButtonBuilder()
+                                .setCustomId(`gemini_last:${interaction.id}`)
+                                .setLabel('끝')
+                                .setStyle(ButtonStyle.Secondary)
                                 .setDisabled(false)
                         );
                     await interaction.editReply({ embeds: [embed], components: [row] });
-                    setTimeout(() => {
-                        paginationCache.delete(interaction.id);
-                        interaction.editReply({ components: [] }).catch(() => {});
-                    }, CACHE_TTL);
                 } else {
                     embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel}` });
                     await interaction.editReply({ embeds: [embed] });
@@ -206,6 +219,72 @@ export default {
         }
     },
     async handleComponent(interaction) {
-        // ... 동일 (생략)
+        logger.info(`[GeminiCommand] handleComponent called with customId: ${interaction.customId}`);
+        try {
+            const [action, originalInteractionId] = interaction.customId.split(':');
+            
+            const data = await loadConversation(originalInteractionId);
+            
+            if (!data) {
+                return interaction.reply({ content: '이 대화의 세션이 만료되었습니다.', flags: MessageFlags.Ephemeral });
+            }
+
+            let { chunks, page, prompt, useSession, modelUsed, personaLabel } = data;
+
+            if (action === 'gemini_prev') {
+                page = Math.max(0, page - 1);
+            } else if (action === 'gemini_next') {
+                page = Math.min(chunks.length - 1, page + 1);
+            } else if (action === 'gemini_first') {
+                page = 0;
+            } else if (action === 'gemini_last') {
+                page = chunks.length - 1;
+            }
+
+            // Update page in stored data
+            data.page = page;
+            await saveConversation(originalInteractionId, data);
+
+            const embed = new EmbedBuilder()
+                .setColor(0x4285F4)
+                .setTitle('Gemini AI 처리 결과')
+                .setDescription(prompt.length > 4096 ? prompt.substring(0, 4093) + "..." : prompt)
+                .addFields({ name: 'Gemini의 답변', value: chunks[page] })
+                .setTimestamp()
+                .setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel} • ${page + 1}/${chunks.length} 페이지` });
+
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`gemini_first:${originalInteractionId}`)
+                        .setLabel('처음')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(page === 0),
+                    new ButtonBuilder()
+                        .setCustomId(`gemini_prev:${originalInteractionId}`)
+                        .setLabel('이전')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page === 0),
+                    new ButtonBuilder()
+                        .setCustomId(`gemini_next:${originalInteractionId}`)
+                        .setLabel('다음')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page === chunks.length - 1),
+                    new ButtonBuilder()
+                        .setCustomId(`gemini_last:${originalInteractionId}`)
+                        .setLabel('끝')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(page === chunks.length - 1)
+                );
+
+            await interaction.update({ embeds: [embed], components: [row] });
+        } catch (error) {
+            logger.error(`[GeminiCommand] Error in handleComponent: ${error.message}`, error);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: '버튼 처리 중 오류가 발생했습니다.', flags: MessageFlags.Ephemeral });
+            } else {
+                await interaction.followUp({ content: '버튼 처리 중 오류가 발생했습니다.', flags: MessageFlags.Ephemeral });
+            }
+        }
     },
 };

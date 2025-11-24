@@ -137,4 +137,4 @@ dist
 
 /logs
 temp/
-data/gemini-sessions
+data/*

@@ -1,0 +1,8 @@
+{
+  "label": "명령어",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "NIRA 슬래시 명령어 카테고리별 목록"
+  }
+}

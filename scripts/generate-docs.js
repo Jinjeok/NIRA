@@ -27,13 +27,72 @@ const CATEGORIES = {
 
 function extractChoices(block) {
   const choices = [];
-  const addChoicesMatch = block.match(/\.addChoices\(([^)]*)\)/s);
-  if (addChoicesMatch) {
-    const inner = addChoicesMatch[1];
-    const objRegex = /\{\s*name:\s*['"`]([^'"`]+)['"`],\s*value:\s*['"`]([^'"`]+)['"`]\s*\}/g;
-    for (const m of inner.matchAll(objRegex)) choices.push({ name: m[1], value: m[2] });
+  const idx = block.indexOf('.addChoices(');
+  if (idx !== -1) {
+    let openParens = 0;
+    let endIndex = -1;
+    for (let i = idx + 12; i < block.length; i++) { // 12 is length of '.addChoices('
+      if (block[i] === '(') openParens++;
+      else if (block[i] === ')') {
+        if (openParens === 0) {
+          endIndex = i;
+          break;
+        }
+        openParens--;
+      }
+    }
+    
+    if (endIndex !== -1) {
+      const inner = block.substring(idx + 12, endIndex);
+      const objRegex = /\{\s*name:\s*['"`]([^'"`]+)['"`],\s*value:\s*['"`]([^'"`]+)['"`]\s*\}/g;
+      for (const m of inner.matchAll(objRegex)) {
+        choices.push({ name: m[1], value: m[2] });
+      }
+    }
   }
   return choices;
+}
+
+function findOptionBlocks(content) {
+  const blocks = [];
+  const optionTypes = [
+    'addStringOption', 'addIntegerOption', 'addBooleanOption', 
+    'addUserOption', 'addChannelOption', 'addNumberOption', 'addAttachmentOption'
+  ];
+  
+  for (const type of optionTypes) {
+    let startIndex = 0;
+    while (true) {
+      const idx = content.indexOf(`.${type}(`, startIndex);
+      if (idx === -1) break;
+      
+      let openParens = 0;
+      let endIndex = -1;
+      
+      for (let i = idx + type.length + 1; i < content.length; i++) {
+        if (content[i] === '(') {
+          openParens++;
+        } else if (content[i] === ')') {
+          openParens--;
+          if (openParens === 0) {
+            endIndex = i;
+            break;
+          }
+        }
+      }
+      
+      if (endIndex !== -1) {
+        blocks.push({
+          type,
+          content: content.substring(idx, endIndex + 1)
+        });
+        startIndex = endIndex + 1;
+      } else {
+        startIndex = idx + 1;
+      }
+    }
+  }
+  return blocks;
 }
 
 function extractCommandInfo(filePath) {
@@ -44,10 +103,10 @@ function extractCommandInfo(filePath) {
     const nameMatch = content.match(/\.setName\(['"`]([^'"`]+)['"`]\)/u);
     const descMatch = content.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/u);
 
-    const optionRegex = /(addStringOption|addIntegerOption|addBooleanOption|addUserOption|addChannelOption|addNumberOption)\(([^)]*)\)\s*=>\s*\{[\s\S]*?\}/g;
     const options = [];
-    for (const match of content.matchAll(optionRegex)) {
-      const block = match[0];
+    const optionBlocks = findOptionBlocks(content);
+    
+    for (const block of optionBlocks) {
       const typeMap = {
         addStringOption: 'string',
         addIntegerOption: 'integer',
@@ -55,14 +114,34 @@ function extractCommandInfo(filePath) {
         addUserOption: 'user',
         addChannelOption: 'channel',
         addNumberOption: 'number',
+        addAttachmentOption: 'attachment',
       };
-      const typeKey = match[1];
-      const type = typeMap[typeKey] || 'string';
-      const optName = block.match(/\.setName\(['"`]([^'"`]+)['"`]\)/u);
-      const optDesc = block.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/u);
-      const required = /\.setRequired\(true\)/.test(block);
-      const choices = extractChoices(block);
-      if (optName && optDesc) options.push({ name: optName[1], description: optDesc[1], required, type, choices });
+      
+      const type = typeMap[block.type] || 'string';
+      const optName = block.content.match(/\.setName\(['"`]([^'"`]+)['"`]\)/u);
+      const optDesc = block.content.match(/\.setDescription\(['"`]([^'"`]+)['"`]\)/u);
+      const required = /\.setRequired\(true\)/.test(block.content);
+      const choices = extractChoices(block.content);
+      
+      // Extract default value from description
+      let defaultValue = '';
+      if (optDesc) {
+        const defaultMatch = optDesc[1].match(/\((?:기본|default):\s*([^)]+)\)/i);
+        if (defaultMatch) {
+          defaultValue = defaultMatch[1].trim();
+        }
+      }
+      
+      if (optName && optDesc) {
+        options.push({ 
+          name: optName[1], 
+          description: optDesc[1], 
+          required, 
+          type, 
+          choices,
+          defaultValue
+        });
+      }
     }
 
     const exampleMatch = content.match(/\/\*\*?[\s\S]*?예시[\s\S]*?\*\//iu) || content.match(/\/\/.*예시.*/u);
@@ -95,8 +174,8 @@ function extractScheduleInfo(filePath) {
 function categorizeSchedule(fileName) { if (/hotdeal/i.test(fileName)) return 'hotdeal'; if (/news/i.test(fileName)) return 'news'; if (/karaoke/i.test(fileName)) return 'entertainment'; if (/splatoon/i.test(fileName)) return 'gaming'; return 'misc'; }
 
 function mdTable(rows) {
-  const header = '| 이름 | 타입 | 필수 | 설명 | 선택지 |\n|---|---|---|---|---|\n';
-  return header + rows.map(r => `| ${r.name} | ${r.type} | ${r.required ? '✅' : ''} | ${r.description} | ${r.choices?.length ? r.choices.map(c=>`${c.name}(${c.value})`).join('<br/>') : ''} |`).join('\n') + '\n';
+  const header = '| 이름 | 타입 | 필수 | 기본값 | 설명 | 선택지 |\n|---|---|---|---|---|---|\n';
+  return header + rows.map(r => `| ${r.name} | ${r.type} | ${r.required ? '✅' : ''} | ${r.defaultValue || ''} | ${r.description} | ${r.choices?.length ? r.choices.map(c=>`${c.name}(${c.value})`).join('<br/>') : ''} |`).join('\n') + '\n';
 }
 
 function generateCommandDocs(commands) {
@@ -177,6 +256,6 @@ function main() {
   console.log('🎉 문서 생성 완료!');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+main();
 
 export { extractCommandInfo, extractScheduleInfo, generateCommandDocs, generateScheduleDocs };

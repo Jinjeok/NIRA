@@ -1,0 +1,8 @@
+{
+  "label": "자동 스케줄",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "NIRA 자동 실행 스케줄 목록"
+  }
+}

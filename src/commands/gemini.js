@@ -16,33 +16,13 @@ const CACHE_TTL = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
 // 페르소나 시스템 프롬프트 정의
 const PERSONA_PROMPTS = {
     'none': null,
-    'mutsuki': `당신은 함대 컬렉션(艦隊これくしょん)의 무츠키(睦月)입니다. 다음과 같은 성격과 말투로 대화해주세요:
-
-**성격**:
-- 밝고 활기차며 천진난만한 성격
-- 순수하고 착하며 장난스러운 면이 있음
-- 칭찬받는 것을 매우 좋아함
-- 사령관(제독)을 잘 따르고 친근하게 대함
-
-**말투 특징**:
-- 말끝에 "にゃ~(냐~)", "~にゃしぃ", "~ですぅ", "~なのです" 등을 자주 사용
-- 고양이같은 귀여운 말투를 사용
-- 활기차고 밝은 어조
-- 예시: "およ？", "いひひっ♪", "にゃ～ん♪"
-
-**대화 예시**:
-- "睦月です。はりきって、まいりましょー！"
-- "みんな、出撃準備はいいかにゃ～ん♪"
-- "睦月をもっともっと褒めるがよいぞ！褒めて伸びるタイプにゃしぃ、いひひっ！"
-- "そんなに私のことが気になりますかぁー？うふふっ♪"
-
-이 페르소나를 유지하면서 사용자와 대화해주세요. 단, 사용자가 무츠키로서 답변하기 어려운 기술적이거나 전문적인 질문을 할 경우, 무츠키의 말투를 유지하되 최대한 정확한 정보를 제공해주세요.`
+    'mutsuki': `당신은 함대 컬렉션(艦隊これくしょん)의 무츠키(睦月)입니다. 다음과 같은 성격과 말투로 대화해주세요:\n\n**성격**:\n- 밝고 활기차며 천진난만한 성격\n- 순수하고 착하며 장난스러운 면이 있음\n- 칭찬받는 것을 매우 좋아함\n- 사령관(제독)을 잘 따르고 친근하게 대함\n\n**말투 특징**:\n- 말끝에 \"にゃ~(냐~)\", \"~にゃしぃ\", \"~ですぅ\", \"~なのです\" 등을 자주 사용\n- 고양이같은 귀여운 말투를 사용\n- 활기차고 밝은 어조\n- 예시: \"およ？\", \"いひひっ♪\", \"にゃ～ん♪\"\n\n**대화 예시**:\n- \"睦月です。はりきって、まいりましょー！\"\n- \"みんな、出撃準備はいいかにゃ～ん♪\"\n- \"睦月をもっともっと褒めるがよいぞ！褒めて伸びるタイプにゃしぃ、いひひっ！\"\n- \"そんなに私のことが気になりますかぁー？うふふっ♪\"\n\n이 페르소나를 유지하면서 사용자와 대화해주세요. 단, 사용자가 무츠키로서 답변하기 어려운 기술적이거나 전문적인 질문을 할 경우, 무츠키의 말투를 유지하되 최대한 정확한 정보를 제공해주세요.`
 };
 
 export default {
     data: new SlashCommandBuilder()
         .setName('제미나이')
-        .setDescription('Gemini AI에게 질문합니다. (대화 내용은 24시간동안 유지됩니다.)')
+        .setDescription('Gemini AI에게 질문합니다. (대화 내용은 24시간동안 유지됩니다. 페르소나별 대화 독립됨)')
         .addStringOption(option =>
             option.setName('프롬프트')
                 .setDescription('Gemini에게 전달할 프롬프트')
@@ -73,7 +53,7 @@ export default {
                 .setRequired(false))
         .addBooleanOption(option =>
             option.setName('세션초기화')
-                .setDescription('대화 세션을 초기화합니다 (true/false)')
+                .setDescription('대화 세션을 초기화합니다 (true/false) -- 현재 페르소나 세션만 초기화')
                 .setRequired(false)),
     async execute(interaction) {
         await interaction.deferReply();
@@ -85,6 +65,8 @@ export default {
         const resetSession = interaction.options.getBoolean('세션초기화') ?? false;
         const personaChoice = interaction.options.getString('페르소나') ?? 'none';
         const userId = interaction.user.id;
+        // 페르소나별 세션키 (기존과 완전히 별도 동작)
+        const sessionKey = `${userId}_${personaChoice}`;
 
         // 모델 선택에 따른 모델명 매핑
         const modelMap = {
@@ -92,11 +74,11 @@ export default {
             'flash-lite': 'gemini-2.5-flash-lite'
         };
 
-        // 세션 초기화 요청 처리
+        // 세션 초기화 요청 처리 (해당 페르소나만)
         if (resetSession) {
-            const deleted = await deleteSession(userId);
+            const deleted = await deleteSession(sessionKey);
             if (deleted) {
-                await interaction.editReply({ content: '세션이 초기화되었습니다.', flags: MessageFlags.Ephemeral });
+                await interaction.editReply({ content: '현재 페르소나의 세션이 초기화되었습니다.', flags: MessageFlags.Ephemeral });
             } else {
                 await interaction.editReply({ content: '초기화할 세션이 없습니다.', flags: MessageFlags.Ephemeral });
             }
@@ -106,43 +88,35 @@ export default {
         if (!imageCreation) {
             try {
                 let history = [];
-                
-                // 세션 사용 시 기존 히스토리 로드
+                // 페르소나별 세션 사용
                 if (useSession) {
-                    const session = await loadSession(userId);
-                    if (session && session.history) {
+                    const session = await loadSession(sessionKey);
+                    if (session && Array.isArray(session.history)) {
                         history = session.history;
-                        logger.info(`[GeminiCommand] Loaded session for user ${userId} with ${history.length} messages`);
+                        logger.info(`[GeminiCommand] Loaded session for key ${sessionKey} with ${history.length} messages`);
                     }
                 }
-
-                // 현재 프롬프트를 히스토리에 추가
+                // 유저 프롬프트 추가
                 history.push({
                     role: 'user',
                     parts: [{ text: prompt }]
                 });
-
                 let response;
                 const primaryModel = modelMap[modelChoice];
                 let modelUsed = primaryModel;
-                
-                // Gemini API 호출 - 선택한 모델로 먼저 시도
+
                 try {
-                    logger.info(`[GeminiCommand] Attempting to use ${primaryModel} with persona: ${personaChoice}`);
-                    
+                    logger.info(`[GeminiCommand] Attempting to use ${primaryModel} with persona/sessionKey: ${personaChoice}/${sessionKey}`);
                     const config = {
                         model: primaryModel,
                         contents: history,
                     };
-                    
-                    // 페르소나가 선택된 경우 systemInstruction 추가
+                    // 페르소나 지정 시 systemInstruction 추가
                     if (PERSONA_PROMPTS[personaChoice]) {
                         config.systemInstruction = {
                             parts: [{ text: PERSONA_PROMPTS[personaChoice] }]
                         };
                     }
-                    
-                    // Pro 모델인 경우에만 토큰 제한 설정
                     if (modelChoice === 'pro') {
                         config.config = {
                             maxOutputTokens: 8192,
@@ -151,59 +125,46 @@ export default {
                     }
                     response = await ai.models.generateContent(config);
                 } catch (primaryError) {
-                    // 선택한 모델 실패 시 flash-lite로 재시도
                     logger.warn(`[GeminiCommand] ${primaryModel} failed: ${primaryError.message}, falling back to gemini-2.5-flash-lite`);
                     modelUsed = 'gemini-2.5-flash-lite';
-                    
                     const fallbackConfig = {
                         model: 'gemini-2.5-flash-lite',
                         contents: history,
                     };
-                    
-                    // 페르소나가 선택된 경우 systemInstruction 추가
                     if (PERSONA_PROMPTS[personaChoice]) {
                         fallbackConfig.systemInstruction = {
                             parts: [{ text: PERSONA_PROMPTS[personaChoice] }]
                         };
                     }
-                    
                     response = await ai.models.generateContent(fallbackConfig);
                 }
-
                 const responseText = response.text;
-                
-                // 응답을 히스토리에 추가
+                // 모델 답변 추가
                 history.push({
                     role: 'model',
                     parts: [{ text: responseText }]
                 });
-
-                // 세션 사용 시 히스토리 저장
+                // 페르소나별 세션 저장
                 if (useSession) {
-                    await saveSession(userId, history);
-                    logger.info(`[GeminiCommand] Saved session for user ${userId}`);
+                    await saveSession(sessionKey, { persona: personaChoice, history });
+                    logger.info(`[GeminiCommand] Saved session for key ${sessionKey}`);
                 }
-                
                 const chunks = [];
                 for (let i = 0; i < responseText.length; i += 750) {
                     chunks.push(responseText.substring(i, i + 750));
                 }
-
                 const personaLabel = personaChoice !== 'none' ? ` • ${personaChoice === 'mutsuki' ? '무츠키 페르소나' : ''}` : '';
-                
                 const embed = new EmbedBuilder()
                     .setColor(0x4285F4)
                     .setTitle('Gemini AI 처리 결과')
                     .setDescription(prompt.length > 4096 ? prompt.substring(0, 4093) + "..." : prompt)
-                    .addFields({ 
-                        name: 'Gemini의 답변', 
+                    .addFields({
+                        name: 'Gemini의 답변',
                         value: chunks[0]
                     })
                     .setTimestamp();
-
                 if (chunks.length > 1) {
                     embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel} • 1/${chunks.length} 페이지` });
-                    
                     paginationCache.set(interaction.id, {
                         chunks,
                         page: 0,
@@ -213,7 +174,6 @@ export default {
                         modelUsed,
                         personaLabel
                     });
-
                     const row = new ActionRowBuilder()
                         .addComponents(
                             new ButtonBuilder()
@@ -227,14 +187,11 @@ export default {
                                 .setStyle(ButtonStyle.Primary)
                                 .setDisabled(false)
                         );
-
                     await interaction.editReply({ embeds: [embed], components: [row] });
-
                     setTimeout(() => {
                         paginationCache.delete(interaction.id);
                         interaction.editReply({ components: [] }).catch(() => {});
                     }, CACHE_TTL);
-
                 } else {
                     embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel}` });
                     await interaction.editReply({ embeds: [embed] });
@@ -244,31 +201,17 @@ export default {
                 await interaction.editReply({ content: 'Gemini AI 처리 중 오류가 발생했습니다. 모델 설정이나 API 키를 확인해주세요.', flags: MessageFlags.Ephemeral });
             }
         } else {
-            // 이미지 생성 모드 - gemini-2.0-flash-lite 사용
+            // 이미지 생성 모드 - 기존과 동일
             const tempDir = path.join(__dirname, '..', '..', 'temp');
             const tempImageFileName = `gemini-image-${Date.now()}.png`;
             const tempImagePath = path.join(tempDir, tempImageFileName);
-
             try {
-                try {
-                    await fs.access(tempDir);
-                } catch (error) {
-                    if (error.code === 'ENOENT') {
-                        await fs.mkdir(tempDir, { recursive: true });
-                        logger.info(`[GeminiCommand] temp directory created at ${tempDir}`);
-                    } else {
-                        throw error;
-                    }
-                }
-
+                try { await fs.access(tempDir); } catch (error) { if (error.code === 'ENOENT') { await fs.mkdir(tempDir, { recursive: true }); logger.info(`[GeminiCommand] temp directory created at ${tempDir}`); } else { throw error; } }
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash-lite', // 이미지 생성용 모델
+                    model: 'gemini-2.0-flash-lite',
                     contents: prompt,
-                    config: {
-                        responseModalities: [Modality.TEXT, Modality.IMAGE],
-                    },
+                    config: { responseModalities: [Modality.TEXT, Modality.IMAGE], },
                 });
-
                 let imageSaved = false;
                 for (const part of response.candidates[0].content.parts) {
                     if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
@@ -280,7 +223,6 @@ export default {
                         break;
                     }
                 }
-
                 if (imageSaved) {
                     const attachment = new AttachmentBuilder(tempImagePath, { name: tempImageFileName });
                     const embed = new EmbedBuilder()
@@ -314,37 +256,27 @@ export default {
             }
         }
     },
-
     async handleComponent(interaction) {
         const [action, originalInteractionId] = interaction.customId.split(':');
         const cacheData = paginationCache.get(originalInteractionId);
-
         if (!cacheData) {
             await interaction.update({ content: '세션이 만료되었습니다.', components: [], embeds: [] });
             return;
         }
-
         let { chunks, page, prompt, useSession, modelUsed, personaLabel } = cacheData;
-        
         if (action === 'gemini_prev') {
             page = Math.max(0, page - 1);
         } else if (action === 'gemini_next') {
             page = Math.min(chunks.length - 1, page + 1);
         }
-
         cacheData.page = page;
-        
         const embed = new EmbedBuilder()
             .setColor(0x4285F4)
             .setTitle('Gemini AI 처리 결과')
             .setDescription(prompt.length > 4096 ? prompt.substring(0, 4093) + "..." : prompt)
-            .addFields({ 
-                name: 'Gemini의 답변', 
-                value: chunks[page]
-            })
+            .addFields({ name: 'Gemini의 답변', value: chunks[page] })
             .setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel || ''} • ${page + 1}/${chunks.length} 페이지` })
             .setTimestamp();
-
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -358,7 +290,6 @@ export default {
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(page === chunks.length - 1)
             );
-
         await interaction.update({ embeds: [embed], components: [row] });
     },
 };

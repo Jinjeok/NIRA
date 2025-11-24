@@ -116,18 +116,6 @@ export default {
                     }
                 }
 
-                // 페르소나 시스템 프롬프트 추가 (히스토리가 비어있고 페르소나가 선택된 경우)
-                if (history.length === 0 && PERSONA_PROMPTS[personaChoice]) {
-                    history.push({
-                        role: 'user',
-                        parts: [{ text: PERSONA_PROMPTS[personaChoice] }]
-                    });
-                    history.push({
-                        role: 'model',
-                        parts: [{ text: '알겠습니다! 무츠키로서 대화하겠습니다냐~! 睦月です。はりきって、まいりましょー！いひひっ♪' }]
-                    });
-                }
-
                 // 현재 프롬프트를 히스토리에 추가
                 history.push({
                     role: 'user',
@@ -146,6 +134,14 @@ export default {
                         model: primaryModel,
                         contents: history,
                     };
+                    
+                    // 페르소나가 선택된 경우 systemInstruction 추가
+                    if (PERSONA_PROMPTS[personaChoice]) {
+                        config.systemInstruction = {
+                            parts: [{ text: PERSONA_PROMPTS[personaChoice] }]
+                        };
+                    }
+                    
                     // Pro 모델인 경우에만 토큰 제한 설정
                     if (modelChoice === 'pro') {
                         config.config = {
@@ -158,10 +154,20 @@ export default {
                     // 선택한 모델 실패 시 flash-lite로 재시도
                     logger.warn(`[GeminiCommand] ${primaryModel} failed: ${primaryError.message}, falling back to gemini-2.5-flash-lite`);
                     modelUsed = 'gemini-2.5-flash-lite';
-                    response = await ai.models.generateContent({
+                    
+                    const fallbackConfig = {
                         model: 'gemini-2.5-flash-lite',
                         contents: history,
-                    });
+                    };
+                    
+                    // 페르소나가 선택된 경우 systemInstruction 추가
+                    if (PERSONA_PROMPTS[personaChoice]) {
+                        fallbackConfig.systemInstruction = {
+                            parts: [{ text: PERSONA_PROMPTS[personaChoice] }]
+                        };
+                    }
+                    
+                    response = await ai.models.generateContent(fallbackConfig);
                 }
 
                 const responseText = response.text;

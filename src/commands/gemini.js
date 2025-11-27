@@ -192,29 +192,8 @@ export default {
                         personaLabel
                     });
 
-                    const row = new ActionRowBuilder()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId(`gemini_first:${interaction.id}`)
-                                .setLabel('처음')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setDisabled(true),
-                            new ButtonBuilder()
-                                .setCustomId(`gemini_prev:${interaction.id}`)
-                                .setLabel('이전')
-                                .setStyle(ButtonStyle.Primary)
-                                .setDisabled(true),
-                            new ButtonBuilder()
-                                .setCustomId(`gemini_next:${interaction.id}`)
-                                .setLabel('다음')
-                                .setStyle(ButtonStyle.Primary)
-                                .setDisabled(false),
-                            new ButtonBuilder()
-                                .setCustomId(`gemini_last:${interaction.id}`)
-                                .setLabel('끝')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setDisabled(false)
-                        );
+                    const row = createPaginationButtons(0, chunks.length, interaction.id);
+                    await interaction.editReply({ embeds: [embed], components: [row] });
                     await interaction.editReply({ embeds: [embed], components: [row] });
                 } else {
                     embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel}` });
@@ -241,14 +220,11 @@ export default {
 
             let { chunks, page, prompt, useSession, modelUsed, personaLabel } = data;
 
-            if (action === 'gemini_prev') {
-                page = Math.max(0, page - 1);
-            } else if (action === 'gemini_next') {
-                page = Math.min(chunks.length - 1, page + 1);
-            } else if (action === 'gemini_first') {
-                page = 0;
-            } else if (action === 'gemini_last') {
-                page = chunks.length - 1;
+            if (action.startsWith('gemini_page_')) {
+                const pageIndex = parseInt(action.replace('gemini_page_', ''), 10);
+                if (!isNaN(pageIndex) && pageIndex >= 0 && pageIndex < chunks.length) {
+                    page = pageIndex;
+                }
             }
 
             // Update page in stored data
@@ -263,29 +239,7 @@ export default {
                 .setTimestamp()
                 .setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, 세션 모드)` : `Powered by Google Gemini (${modelUsed})`}${personaLabel} • ${page + 1}/${chunks.length} 페이지` });
 
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`gemini_first:${originalInteractionId}`)
-                        .setLabel('처음')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setDisabled(page === 0),
-                    new ButtonBuilder()
-                        .setCustomId(`gemini_prev:${originalInteractionId}`)
-                        .setLabel('이전')
-                        .setStyle(ButtonStyle.Primary)
-                        .setDisabled(page === 0),
-                    new ButtonBuilder()
-                        .setCustomId(`gemini_next:${originalInteractionId}`)
-                        .setLabel('다음')
-                        .setStyle(ButtonStyle.Primary)
-                        .setDisabled(page === chunks.length - 1),
-                    new ButtonBuilder()
-                        .setCustomId(`gemini_last:${originalInteractionId}`)
-                        .setLabel('끝')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setDisabled(page === chunks.length - 1)
-                );
+            const row = createPaginationButtons(page, chunks.length, originalInteractionId);
 
             await interaction.update({ embeds: [embed], components: [row] });
         } catch (error) {
@@ -298,3 +252,34 @@ export default {
         }
     },
 };
+
+function createPaginationButtons(currentPage, totalPages, interactionId) {
+    const row = new ActionRowBuilder();
+    const maxButtons = 5;
+
+    let startPage = 0;
+    let endPage = totalPages - 1;
+
+    if (totalPages > maxButtons) {
+        const half = Math.floor(maxButtons / 2);
+        startPage = Math.max(0, currentPage - half);
+        endPage = startPage + maxButtons - 1;
+
+        if (endPage >= totalPages) {
+            endPage = totalPages - 1;
+            startPage = Math.max(0, endPage - maxButtons + 1);
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        row.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`gemini_page_${i}:${interactionId}`)
+                .setLabel(`${i + 1}`)
+                .setStyle(i === currentPage ? ButtonStyle.Success : ButtonStyle.Secondary)
+                .setDisabled(i === currentPage)
+        );
+    }
+
+    return row;
+}

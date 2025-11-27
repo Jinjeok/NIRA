@@ -58,7 +58,7 @@ async function main() {
                         return;
                     }
                 }
-                if (cid.startsWith('gemini_prev:') || cid.startsWith('gemini_next:') || cid.startsWith('gemini_first:') || cid.startsWith('gemini_last:')) {
+                if (cid.startsWith('gemini_page_')) {
                     const gemini = interaction.client.commands.get('제미나이');
                     if (gemini?.handleComponent) {
                         await gemini.handleComponent(interaction);

@@ -26,7 +26,8 @@ const logger = winston.createLogger({
         // 콘솔에 로그 출력 (개발 시 유용)
         new winston.transports.Console({
             format: combine(
-                colorize(), // 콘솔에는 색상 추가
+                // TTY 환경(터미널)에서만 색상 적용, systemd 등에서는 색상 제거하여 [blob data] 방지
+                ...(process.stdout.isTTY ? [colorize()] : []),
                 timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
                 logFormat
             ),

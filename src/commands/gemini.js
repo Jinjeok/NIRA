@@ -175,7 +175,7 @@ export default {
                     parts: [{ text: responseText }]
                 });
                 if (useSession) {
-                    await saveSession(sessionKey, { persona: personaChoice, history });
+                    await saveSession(sessionKey, history);
                     logger.info(`[GeminiCommand] Saved session for key ${sessionKey}`);
                 }
                 const chunks = [];

@@ -79,7 +79,8 @@ export default {
                 .setRequired(false)
                 .addChoices(
                     { name: 'Pro (고성능, 기본값)', value: 'pro' },
-                    { name: 'Flash Lite (경량)', value: 'flash-lite' }
+                    { name: 'Flash Lite (경량)', value: 'flash-lite' },
+                    { name: 'Flash Lite Search (검색)', value: 'flash-lite-search' }
                 ))
         .addBooleanOption(option =>
             option.setName('이미지생성')
@@ -99,15 +100,20 @@ export default {
                 .setDescription('대화 세션을 초기화합니다 (true/false) -- 현재 페르소나 세션만 초기화')
                 .setRequired(false)),
     async execute(interaction) {
+        const modelChoice = interaction.options.getString('모델') ?? 'pro';
+        const personaChoice = interaction.options.getString('페르소나') ?? 'none';
+
+        if (modelChoice === 'flash-lite-search' && personaChoice !== 'none') {
+            return interaction.reply({ content: '현재 검색 모델과 페르소나는 동시에 사용할 수 없습니다.', flags: MessageFlags.Ephemeral });
+        }
+
         await interaction.deferReply();
         
-        const modelChoice = interaction.options.getString('모델') ?? 'pro';
         const prompt = interaction.options.getString('프롬프트');
         const imageCreation = interaction.options.getBoolean('이미지생성') ?? false;
         const sessionMode = interaction.options.getString('세션모드') ?? 'on';
         const useSession = sessionMode !== 'off';
         const resetSession = interaction.options.getBoolean('세션초기화') ?? false;
-        const personaChoice = interaction.options.getString('페르소나') ?? 'none';
         const userId = interaction.user.id;
         
         let sessionKey;
@@ -119,7 +125,8 @@ export default {
 
         const modelMap = {
             'pro': 'gemini-2.5-pro',
-            'flash-lite': 'gemini-2.5-flash-lite'
+            'flash-lite': 'gemini-2.5-flash-lite',
+            'flash-lite-search': 'gemini-2.5-flash-lite'
         };
 
         if (resetSession) {
@@ -135,6 +142,8 @@ export default {
             return;
         }
 
+
+
         if (useSession && processingSessions.has(sessionKey)) {
             return interaction.editReply({ content: '현재 이 세션에서 다른 요청을 처리 중입니다. 잠시 후 다시 시도해주세요.', flags: MessageFlags.Ephemeral });
         }
@@ -145,15 +154,15 @@ export default {
 
         try {
             if (!imageCreation) {
-            try {
-                let history = [];
-                if (useSession) {
-                    const session = await loadSession(sessionKey);
-                    if (session && Array.isArray(session.history)) {
-                        history = session.history;
-                        logger.info(`[GeminiCommand] Loaded session for key ${sessionKey} with ${history.length} messages`);
+                try {
+                    let history = [];
+                    if (useSession) {
+                        const session = await loadSession(sessionKey);
+                        if (session && Array.isArray(session.history)) {
+                            history = session.history;
+                            logger.info(`[GeminiCommand] Loaded session for key ${sessionKey} with ${history.length} messages`);
+                        }
                     }
-                }
                 history.push({
                     role: 'user',
                     parts: [{ text: prompt }]
@@ -180,6 +189,14 @@ export default {
                             temperature: 1.0,
                         };
                     }
+                    if (modelChoice === 'flash-lite-search') {
+                        config.config = {
+                            ...config.config,
+                            tools: [{ googleSearch: {} }]
+                        };
+                    }
+                    
+                    
                     response = await ai.models.generateContent(config);
                 } catch (primaryError) {
                     logger.warn(`[GeminiCommand] ${primaryModel} failed: ${primaryError.message}, falling back to gemini-2.5-flash-lite`);
@@ -216,7 +233,7 @@ export default {
                     .addFields({ name: 'Gemini의 답변', value: chunks[0] })
                     .setTimestamp();
                 if (chunks.length > 1) {
-                    embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, ${sessionMode === 'public' ? '공용 세션' : '세션 모드'})` : `Powered by Google Gemini (${modelUsed})`}${personaLabel} • 1/${chunks.length} 페이지` });
+                    embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, ${sessionMode === 'public' ? '공용 세션' : '세션 모드'})` : `Powered by Google Gemini (${modelUsed})`}${modelChoice === 'flash-lite-search' ? ' (검색 모델)' : ''}${personaLabel} • 1/${chunks.length} 페이지` });
                     
                     await saveConversation(interaction.id, {
                         chunks,
@@ -224,7 +241,7 @@ export default {
                         timestamp: Date.now(),
                         prompt,
                         useSession,
-                        modelUsed,
+                        modelUsed: modelUsed + (modelChoice === 'flash-lite-search' ? ' (검색 모델)' : ''),
                         personaLabel
                     });
 
@@ -232,7 +249,7 @@ export default {
                     await interaction.editReply({ embeds: [embed], components: [row] });
                     await interaction.editReply({ embeds: [embed], components: [row] });
                 } else {
-                    embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, ${sessionMode === 'public' ? '공용 세션' : '세션 모드'})` : `Powered by Google Gemini (${modelUsed})`}${personaLabel}` });
+                    embed.setFooter({ text: `${useSession ? `Powered by Google Gemini (${modelUsed}, ${sessionMode === 'public' ? '공용 세션' : '세션 모드'})` : `Powered by Google Gemini (${modelUsed})`}${modelChoice === 'flash-lite-search' ? ' (검색 모델)' : ''}${personaLabel}` });
                     await interaction.editReply({ embeds: [embed] });
                 }
             } catch (error) {

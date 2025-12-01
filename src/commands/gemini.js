@@ -14,6 +14,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 // Start cleanup schedule
 // startCleanupSchedule(); // Moved to index.js to prevent hang in deploy-commands
 
+const processingSessions = new Set();
 // const paginationCache = new Map(); // Removed in favor of file persistence
 // const CACHE_TTL = 24 * 60 * 60 * 1000; // Handled by ConversationManager
 
@@ -134,7 +135,16 @@ export default {
             return;
         }
 
-        if (!imageCreation) {
+        if (useSession && processingSessions.has(sessionKey)) {
+            return interaction.editReply({ content: '현재 이 세션에서 다른 요청을 처리 중입니다. 잠시 후 다시 시도해주세요.', flags: MessageFlags.Ephemeral });
+        }
+
+        if (useSession) {
+            processingSessions.add(sessionKey);
+        }
+
+        try {
+            if (!imageCreation) {
             try {
                 let history = [];
                 if (useSession) {
@@ -232,6 +242,11 @@ export default {
         } else {
             // ... 이하 기존 이미지 생성 분기 동일 (생략)
         }
+    } finally {
+        if (useSession) {
+            processingSessions.delete(sessionKey);
+        }
+    }
     },
     async handleComponent(interaction) {
         logger.info(`[GeminiCommand] handleComponent called with customId: ${interaction.customId}`);

@@ -3,6 +3,7 @@ import logger from '../logger.js';
 import { checkLimit, incrementUsage, getLimits } from '../utils/usageManager.js';
 import { saveConversation, loadConversation } from '../utils/conversationManager.js';
 import { createPaginationButtons } from '../utils/paginationManager.js';
+import { PERSONA_PROMPTS, PERSONA_CHOICES } from '../utils/personas.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -20,12 +21,18 @@ export default {
                     { name: 'Sonar Pro (일반, 하루 3회)', value: 'sonar-pro' },
                     { name: 'Sonar Reasoning (추론, 하루 5회)', value: 'sonar-reasoning' },
                     { name: 'Sonar (경량, 하루 15회)', value: 'sonar' }
-                )),
+                ))
+        .addStringOption(option =>
+            option.setName('persona')
+                .setDescription('대화할 페르소나 선택')
+                .setRequired(false)
+                .addChoices(...PERSONA_CHOICES)),
     async execute(interaction) {
         await interaction.deferReply();
 
         const prompt = interaction.options.getString('prompt');
         const model = interaction.options.getString('model') || 'sonar';
+        const personaChoice = interaction.options.getString('persona') || 'none';
         const apiKey = process.env.PERPLEXITY_API_KEY;
 
         // Status Check Mode (No prompt provided)
@@ -94,7 +101,7 @@ export default {
                 body: JSON.stringify({
                     model: model,
                     messages: [
-                        { role: 'system', content: 'You are a helpful AI assistant. Answer in Korean unless requested otherwise.' },
+                        { role: 'system', content: (personaChoice !== 'none' && PERSONA_PROMPTS[personaChoice]) ? PERSONA_PROMPTS[personaChoice].prompt : 'You are a helpful AI assistant. Answer in Korean unless requested otherwise.' },
                         { role: 'user', content: prompt }
                     ],
                     max_tokens: maxTokens

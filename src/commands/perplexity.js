@@ -86,7 +86,7 @@ export default {
         if (model === 'sonar-reasoning') {
             maxTokens = 8192;
         } else if (model === 'sonar') {
-            maxTokens = 2048;
+            maxTokens = 4096;
         }
 
         try {

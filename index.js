@@ -65,6 +65,13 @@ async function main() {
                         return;
                     }
                 }
+                if (cid.startsWith('perplexity_page_')) {
+                    const perplexity = interaction.client.commands.get('perplexity');
+                    if (perplexity?.handleComponent) {
+                        await perplexity.handleComponent(interaction);
+                        return;
+                    }
+                }
             }
 
             if (!interaction.isChatInputCommand()) return;

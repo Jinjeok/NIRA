@@ -23,7 +23,7 @@ export default {
         await interaction.deferReply();
 
         const prompt = interaction.options.getString('prompt');
-        const model = interaction.options.getString('model') || 'sonar-pro';
+        const model = interaction.options.getString('model') || 'sonar';
         const apiKey = process.env.PERPLEXITY_API_KEY;
 
         // Status Check Mode (No prompt provided)

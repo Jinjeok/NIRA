@@ -12,7 +12,7 @@ export default {
                 .setRequired(false))
         .addStringOption(option =>
             option.setName('model')
-                .setDescription('사용할 모델 (기본: sonar-pro)')
+                .setDescription('사용할 모델 (기본: sonar)')
                 .setRequired(false)
                 .addChoices(
                     { name: 'Sonar Pro (일반, 하루 3회)', value: 'sonar-pro' },

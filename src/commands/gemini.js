@@ -136,31 +136,47 @@ export default {
                 let modelUsed = primaryModel;
 
                 try {
-                    logger.info(`[GeminiCommand] Attempting to use ${primaryModel} with persona/sessionKey: ${personaChoice}/${sessionKey}`);
-                    const config = {
-                        model: primaryModel,
-                        contents: history,
-                        config: {}
-                    };
-                    if (PERSONA_PROMPTS[personaChoice]) {
-                        config.config.systemInstruction = PERSONA_PROMPTS[personaChoice].prompt;
-                    }
-                    if (modelChoice === 'pro') {
-                        config.config = {
-                            ...config.config,
-                            maxOutputTokens: 8192,
-                            temperature: 1.0,
+                    let retryCount = 0;
+                const maxRetries = 3;
+
+                while (retryCount <= maxRetries) {
+                    try {
+                        logger.info(`[GeminiCommand] Attempting to use ${primaryModel} with persona/sessionKey: ${personaChoice}/${sessionKey} (Attempt ${retryCount + 1})`);
+                        const config = {
+                            model: primaryModel,
+                            contents: history,
+                            config: {}
                         };
+                        if (PERSONA_PROMPTS[personaChoice]) {
+                            config.config.systemInstruction = PERSONA_PROMPTS[personaChoice].prompt;
+                        }
+                        if (modelChoice === 'pro') {
+                            config.config = {
+                                ...config.config,
+                                maxOutputTokens: 8192,
+                                temperature: 1.0,
+                            };
+                        }
+                        if (modelChoice === 'flash-lite-search') {
+                            config.config = {
+                                ...config.config,
+                                tools: [{ googleSearch: {} }]
+                            };
+                        }
+                        
+                        response = await ai.models.generateContent(config);
+                        break; // Success
+                    } catch (error) {
+                        if (error.message.includes('503') && retryCount < maxRetries) {
+                            retryCount++;
+                            logger.warn(`[GeminiCommand] 503 error on ${primaryModel}, retrying (${retryCount}/${maxRetries})...`);
+                            await interaction.editReply({ content: `재시도 중입니다 (${retryCount}/${maxRetries})` });
+                            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+                            continue;
+                        }
+                        throw error;
                     }
-                    if (modelChoice === 'flash-lite-search') {
-                        config.config = {
-                            ...config.config,
-                            tools: [{ googleSearch: {} }]
-                        };
-                    }
-                    
-                    
-                    response = await ai.models.generateContent(config);
+                }
                 } catch (primaryError) {
                     logger.warn(`[GeminiCommand] ${primaryModel} failed: ${primaryError.message}, falling back to gemini-2.5-flash-lite`);
                     modelUsed = 'gemini-2.5-flash-lite';

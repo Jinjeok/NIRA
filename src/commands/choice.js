@@ -56,19 +56,23 @@ export default {
             const randomNum = Math.random() * 100; // 0 이상 100 미만의 실수
             let cumulativeProbability = 0;
 
+            let selectedIndex;
+
             for (let i = 0; i < items.length; i++) {
                 cumulativeProbability += probabilities[i];
                 if (randomNum < cumulativeProbability) {
                     selectedItem = items[i];
+                    selectedIndex = i;
                     break;
                 }
             }
             // Fallback if somehow no item is selected (shouldn't happen with totalProbability === 100)
             if (!selectedItem) {
                 selectedItem = items[items.length - 1]; // Default to last item if something goes wrong
+                selectedIndex = items.length - 1;
             }
 
-            embedDescription = `**항목:** \n${items.map((item, index) => `- ${item} (${probabilities[index]}%)`).join('\n')}\n\n**선택된 항목:** \n**${selectedItem}**`;
+            embedDescription = `**항목:** \n${items.map((item, index) => `${index + 1}. ${item} (${probabilities[index]}%)`).join('\n')}\n\n**선택된 항목:** \n**${selectedIndex + 1}. ${selectedItem}**`;
             footerText = '확률에 따라 공정하게 선택되었습니다.';
 
         } else {
@@ -79,8 +83,9 @@ export default {
                 return;
             }
 
-            selectedItem = items[Math.floor(Math.random() * items.length)];
-            embedDescription = `**항목:** \n${items.map((item, index) => `- ${item}`).join('\n')}\n\n**선택된 항목:** \n**${selectedItem}**`;
+            const selectedIndex = Math.floor(Math.random() * items.length);
+            selectedItem = items[selectedIndex];
+            embedDescription = `**항목:** \n${items.map((item, index) => `${index + 1}. ${item}`).join('\n')}\n\n**선택된 항목:** \n**${selectedIndex + 1}. ${selectedItem}**`;
             footerText = '동일한 확률로 공정하게 선택되었습니다.';
         }
 

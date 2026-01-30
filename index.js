@@ -10,6 +10,19 @@ import scheduler from './src/schedule.js'; // 스케줄러 모듈 가져오기
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 전역 에러 핸들링: 예기치 않은 에러 발생 시 로그 기록 후 종료
+process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception:', err);
+    logger.on('finish', () => process.exit(1));
+    logger.end(); 
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    logger.on('finish', () => process.exit(1));
+    logger.end();
+});
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -100,7 +113,9 @@ async function main() {
     client.login(process.env.DISCORD_BOT_TOKEN)
         .catch(error => {
             logger.error('봇 로그인 중 오류 발생:', error);
-            process.exit(1);
+            // 로그가 파일에 기록될 때까지 기다린 후 종료
+            logger.on('finish', () => process.exit(1));
+            logger.end();
         });
 }
 

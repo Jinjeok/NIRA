@@ -17,7 +17,7 @@ const DOCS_OUTPUT_DIR = path.resolve(__dirname, '../docs/docs');
 
 const CATEGORIES = {
   utility: { name: '유틸리티', description: '계산, 변환, 시간 등 일상적인 도구들', keywords: ['calculation', 'clock', 'length', 'exchange', 'base64', 'color'] },
-  information: { name: '정보 조회', description: '주식, 환율, 핫딜 등 실시간 정보 조회', keywords: ['stock', 'hotdeal', 'price', 'exchange', 'newsletter'] },
+  information: { name: '정보 조회', description: '주식, 환율 등 실시간 정보 조회', keywords: ['stock', 'price', 'exchange', 'newsletter'] },
   fun: { name: '재미/게임', description: '주사위, 동전, 추첨 등 재미있는 기능들', keywords: ['coin', 'choice', 'random', 'lottory', 'omikuji', 'oddoreven', 'simulation'] },
   text: { name: '텍스트 처리', description: '텍스트 변환, 처리 관련 기능들', keywords: ['reverse', 'say', 'random_letter', 'thatlong'] },
   admin: { name: '관리/시스템', description: '봇 관리 및 시스템 기능들', keywords: ['delete', 'upgrade', 'ping', 'invite', 'homepage'] },
@@ -171,7 +171,7 @@ function extractScheduleInfo(filePath) {
   } catch (e) { console.warn(`스케줄 처리 오류: ${filePath}: ${e.message}`); return null; }
 }
 
-function categorizeSchedule(fileName) { if (/hotdeal/i.test(fileName)) return 'hotdeal'; if (/news/i.test(fileName)) return 'news'; if (/karaoke/i.test(fileName)) return 'entertainment'; if (/splatoon/i.test(fileName)) return 'gaming'; return 'misc'; }
+function categorizeSchedule(fileName) { if (/news/i.test(fileName)) return 'news'; if (/karaoke/i.test(fileName)) return 'entertainment'; if (/splatoon/i.test(fileName)) return 'gaming'; return 'misc'; }
 
 function mdTable(rows) {
   const header = '| 이름 | 타입 | 필수 | 기본값 | 설명 | 선택지 |\n|---|---|---|---|---|---|\n';

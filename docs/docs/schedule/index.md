@@ -6,17 +6,6 @@ sidebar_position: 1
 
 NIRA가 정해진 시간에 자동으로 실행하는 작업들입니다.
 
-## Daily Hotdeal Sender
-
-**설명:** 편집 운영에 channel 권장
-
-**실행 시간:**
-- `0 9,15,21 * * *` - 0 9,15,21 * * *
-
-**카테고리:** hotdeal
-
----
-
 ## Daily News Sender
 
 **설명:** __dirname 대체용

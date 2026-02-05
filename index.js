@@ -61,16 +61,8 @@ async function main() {
 
     client.on('interactionCreate', async interaction => {
         try {
-            // 최소 라우팅만 추가: 핫딜 버튼은 커맨드 모듈에서 처리
             if (interaction.isButton()) {
                 const cid = interaction.customId || '';
-                if (cid.startsWith('hotdeal_prev:') || cid.startsWith('hotdeal_next:')) {
-                    const hotdeal = interaction.client.commands.get('핫딜');
-                    if (hotdeal?.handleComponent) {
-                        await hotdeal.handleComponent(interaction);
-                        return;
-                    }
-                }
                 if (cid.startsWith('gemini_page_')) {
                     const gemini = interaction.client.commands.get('제미나이');
                     if (gemini?.handleComponent) {

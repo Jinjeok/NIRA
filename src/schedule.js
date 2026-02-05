@@ -1,6 +1,5 @@
 import cron from 'node-cron';
 import logger from './logger.js';
-import dailyHotdealTask from './schedule/dailyHotdealSender.js';
 import splatoonTask from './schedule/splatoonSchedule.js';
 import karaokeSender from './schedule/karaokeSender.js';
 import { cleanupExpiredSessions } from './utils/sessionManager.js';
@@ -36,37 +35,7 @@ function initScheduler(client) {
     await cleanupConversations();
   }, { scheduled: true, timezone: 'Asia/Seoul' });
 
-  // Hotdeal: send once at 09:00, then edit hourly
-  const CRON_SEND = process.env.HOTDEAL_CRON_SEND || '0 9 * * *';
-  const CRON_EDIT = process.env.HOTDEAL_CRON_EDIT || '0 * * * *';
-
-  if (dailyHotdealTask?.sendHotdeal) {
-    // 09:00 send (or ensure message exists)
-    if (!cron.validate(CRON_SEND)) {
-      logger.error(`[Scheduler] Hotdeal CRON_SEND invalid: ${CRON_SEND}`);
-    } else {
-      logger.info(`[Scheduler] Hotdeal SEND scheduled '${CRON_SEND}' (Asia/Seoul)`);
-      cron.schedule(CRON_SEND, async () => {
-        logger.info(`[Scheduler] Hotdeal SEND tick: ${new Date().toLocaleString()}`);
-        await dailyHotdealTask.sendHotdeal(client, { mode: 'send' });
-      }, { scheduled: true, timezone: 'Asia/Seoul' });
-    }
-
-    // hourly edit
-    if (!cron.validate(CRON_EDIT)) {
-      logger.error(`[Scheduler] Hotdeal CRON_EDIT invalid: ${CRON_EDIT}`);
-    } else {
-      logger.info(`[Scheduler] Hotdeal EDIT scheduled '${CRON_EDIT}' (Asia/Seoul)`);
-      cron.schedule(CRON_EDIT, async () => {
-        logger.info(`[Scheduler] Hotdeal EDIT tick: ${new Date().toLocaleString()}`);
-        await dailyHotdealTask.sendHotdeal(client, { mode: 'edit' });
-      }, { scheduled: true, timezone: 'Asia/Seoul' });
-    }
-  } else {
-    logger.warn('[Scheduler] dailyHotdealTask not properly defined.');
-  }
-
-  // Splatoon task unchanged
+  // Splatoon task
   if (splatoonTask?.CRON_EXPRESSION && splatoonTask?.sendSplatoonSchedule) {
     if (!cron.validate(splatoonTask.CRON_EXPRESSION)) {
       logger.error(`[Scheduler] SplatoonTask CRON invalid: ${splatoonTask.CRON_EXPRESSION}`);

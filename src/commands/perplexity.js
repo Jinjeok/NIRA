@@ -109,8 +109,15 @@ export default {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`API Error: ${response.status} - ${JSON.stringify(errorData)}`);
+                const rawText = await response.text();
+                let errorDetail;
+                try {
+                    const errorData = JSON.parse(rawText);
+                    errorDetail = JSON.stringify(errorData);
+                } catch {
+                    errorDetail = rawText.substring(0, 200);
+                }
+                throw new Error(`API Error: ${response.status} - ${errorDetail}`);
             }
 
             const data = await response.json();

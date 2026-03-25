@@ -33,13 +33,14 @@ const CARRIERS = [
 ];
 
 // 운송장 번호에서 국가코드 추출해 자동 감지
+// 반환값: { carrierId } 또는 { error } 또는 null
 function autoDetectCarrier(tracking) {
-  // EMS 형식: 영문2 + 숫자8~9 + 영문2 (예: EL574714325JP, EE123456789KR)
   const emsMatch = tracking.match(/^[A-Z]{2}\d{8,9}([A-Z]{2})$/);
   if (emsMatch) {
     const country = emsMatch[1];
-    if (country === 'KR') return 'kr.epost.ems';
-    return 'un.upu.ems'; // JP, CN 등 해외발
+    if (country === 'KR') return { carrierId: 'kr.epost.ems' };
+    // un.upu.ems 스크래퍼가 UPU API(items.ems.post) CloudFront 차단으로 동작 불가
+    return { error: `해외발 EMS(${country})는 현재 조회가 지원되지 않습니다.\n우체국 국제우편 조회: <https://ems.epost.go.kr/front.EmsDeliveryDelivery.postal>` };
   }
   return null;
 }
@@ -92,6 +93,7 @@ const TRACK_QUERY = `
 `;
 
 export default {
+  disabled: true,
   data: new SlashCommandBuilder()
     .setName('배송조회')
     .setDescription('운송장 번호로 배송 상태를 조회합니다. (CJ, 한진, 롯데, 우체국 등)')
@@ -110,12 +112,22 @@ export default {
   async execute(interaction) {
     const tracking = interaction.options.getString('운송장').trim().toUpperCase();
 
-    const carrierId = interaction.options.getString('택배사') ?? autoDetectCarrier(tracking);
-    if (!carrierId) {
-      return interaction.reply({
-        content: '택배사를 선택해주세요. EMS 국제우편이 아닌 경우 자동 감지가 불가합니다.',
-        flags: MessageFlags.Ephemeral,
-      });
+    const selected = interaction.options.getString('택배사');
+    let carrierId;
+    if (selected) {
+      carrierId = selected;
+    } else {
+      const detected = autoDetectCarrier(tracking);
+      if (!detected) {
+        return interaction.reply({
+          content: '택배사를 선택해주세요. EMS 국제우편이 아닌 경우 자동 감지가 불가합니다.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+      if (detected.error) {
+        return interaction.reply({ content: detected.error, flags: MessageFlags.Ephemeral });
+      }
+      carrierId = detected.carrierId;
     }
 
     await interaction.deferReply();

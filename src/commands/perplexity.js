@@ -6,6 +6,7 @@ import { createPaginationButtons } from '../utils/paginationManager.js';
 import { PERSONA_PROMPTS, PERSONA_CHOICES } from '../utils/personas.js';
 
 export default {
+    disabled: true,
     data: new SlashCommandBuilder()
         .setName('perplexity')
         .setDescription('Perplexity AI에게 질문하거나 사용량을 확인합니다.')

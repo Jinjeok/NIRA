@@ -21,7 +21,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
         try {
             const commandModule = await import(pathToFileURL(filePath).href);
             const command = commandModule.default || commandModule; // ES 모듈의 default export를 사용한다고 가정
-            if (command && 'data' in command) {
+            if (command && 'data' in command && !command.disabled) {
                 commands.push(command.data.toJSON());
             } else {
                 logger.warn(`[경고] ${filePath} 에 'data' 속성이 없습니다.`);

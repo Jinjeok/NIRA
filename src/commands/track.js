@@ -8,26 +8,39 @@ import axios from 'axios';
 const ENDPOINT = process.env.DELIVERY_TRACKER_URL ?? 'http://localhost:4000/';
 
 const CARRIERS = [
-  { name: 'CJ대한통운',     value: 'kr.cjlogistics' },
-  { name: '한진택배',        value: 'kr.hanjin' },
-  { name: '롯데택배',        value: 'kr.lotte' },
-  { name: '우체국 국내',    value: 'kr.epost' },
-  { name: '우체국 EMS',     value: 'kr.epost.ems' },
-  { name: '쿠팡',           value: 'kr.coupangls' },
-  { name: 'CU편의점택배',   value: 'kr.cupost' },
-  { name: 'GS Postbox',     value: 'kr.cvsnet' },
-  { name: '로젠택배',       value: 'kr.logen' },
-  { name: '대신택배',       value: 'kr.daesin' },
-  { name: '경동택배',       value: 'kr.kdexp' },
-  { name: '천일택배',       value: 'kr.chunilps' },
-  { name: 'LX Pantos',      value: 'kr.epantos' },
-  { name: 'CWAY(우리택배)', value: 'kr.cway' },
-  { name: 'SLX',            value: 'kr.slx' },
+  { name: 'CJ대한통운',        value: 'kr.cjlogistics' },
+  { name: '한진택배',           value: 'kr.hanjin' },
+  { name: '롯데택배',           value: 'kr.lotte' },
+  { name: '우체국 국내',       value: 'kr.epost' },
+  { name: '우체국 EMS (발송)', value: 'kr.epost.ems' },
+  { name: '국제 EMS (수취)',   value: 'un.upu.ems' },
+  { name: '쿠팡',              value: 'kr.coupangls' },
+  { name: 'CU편의점택배',      value: 'kr.cupost' },
+  { name: 'GS Postbox',        value: 'kr.cvsnet' },
+  { name: '로젠택배',          value: 'kr.logen' },
+  { name: '대신택배',          value: 'kr.daesin' },
+  { name: '경동택배',          value: 'kr.kdexp' },
+  { name: '천일택배',          value: 'kr.chunilps' },
+  { name: 'LX Pantos',         value: 'kr.epantos' },
+  { name: 'CWAY(우리택배)',    value: 'kr.cway' },
+  { name: 'SLX',               value: 'kr.slx' },
+  { name: 'DHL',               value: 'de.dhl' },
+  { name: 'FedEx',             value: 'us.fedex' },
+  { name: 'UPS',               value: 'us.ups' },
+  { name: 'USPS',              value: 'us.usps' },
+  { name: 'Yamato (일본)',     value: 'jp.yamato' },
+  { name: 'Sagawa (일본)',     value: 'jp.sagawa' },
 ];
 
-// EMS 국제우편 운송장은 자동 감지
+// 운송장 번호에서 국가코드 추출해 자동 감지
 function autoDetectCarrier(tracking) {
-  if (/^[A-Z]{2}\d{8,9}[A-Z]{2}$/.test(tracking)) return 'kr.epost.ems';
+  // EMS 형식: 영문2 + 숫자8~9 + 영문2 (예: EL574714325JP, EE123456789KR)
+  const emsMatch = tracking.match(/^[A-Z]{2}\d{8,9}([A-Z]{2})$/);
+  if (emsMatch) {
+    const country = emsMatch[1];
+    if (country === 'KR') return 'kr.epost.ems';
+    return 'un.upu.ems'; // JP, CN 등 해외발
+  }
   return null;
 }
 

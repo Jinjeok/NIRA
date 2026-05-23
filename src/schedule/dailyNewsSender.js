@@ -1,12 +1,6 @@
 import { WebhookClient } from 'discord.js';
-import fs from 'fs/promises';
-import path from 'path';
+import { getMessageId as getStoredMessageId, setMessageId as setStoredMessageId } from '../utils/messageIdStore.js';
 import logger from '../logger.js';
-import { fileURLToPath } from 'node:url'; // __dirname 대체용
-
-// ES 모듈에서 __dirname을 사용하기 위한 설정
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 import { fetchNewsEmbed } from '../commands/newsletter.js'; // newsletter.js 에서 함수 가져오기
 
 // --- Daily News Sender Configuration ---
@@ -18,38 +12,12 @@ const NEWS_CATEGORY = '헤드라인'; // 전송할 뉴스 카테고리
 const CRON_EXPRESSION = '0 9 * * *'; // 매일 오전 9시 (이 작업의 실행 주기)
 // --- End of Configuration ---
 
-const messageIdStorePath = path.join(__dirname, '..', '..', 'temp', 'messageIdStore.json'); // 저장 경로 변경
-
 async function getMessageId(key = 'dailyNews') {
-    try {
-        const data = await fs.readFile(messageIdStorePath, 'utf8');
-        const store = JSON.parse(data);
-        return store[key];
-    } catch (error) {
-        if (error.code === 'ENOENT') { // 파일이 없을 경우
-            logger.info(`[DailyNewsSender] Message ID store file not found at ${messageIdStorePath}. Will create one.`);
-            await fs.writeFile(messageIdStorePath, JSON.stringify({}), 'utf8');
-            return null;
-        }
-        logger.error('[DailyNewsSender] Error reading message ID store:', error);
-        return null;
-    }
+    return getStoredMessageId(key);
 }
 
 async function setMessageId(id, key = 'dailyNews') {
-    try {
-        let store = {};
-        try {
-            const data = await fs.readFile(messageIdStorePath, 'utf8');
-            store = JSON.parse(data);
-        } catch (error) {
-            if (error.code !== 'ENOENT') throw error; // 파일 없음 외의 오류는 다시 던짐
-        }
-        store[key] = id;
-        await fs.writeFile(messageIdStorePath, JSON.stringify(store, null, 2), 'utf8');
-    } catch (error) {
-        logger.error('[DailyNewsSender] Error writing message ID store:', error);
-    }
+    await setStoredMessageId(key, id);
 }
 
 async function sendNews(client) {

@@ -1,53 +1,189 @@
 import cron from 'node-cron';
 import logger from './logger.js';
+import { runtimeLabel } from './runtime/codenames.js';
 import splatoonTask from './schedule/splatoonSchedule.js';
 import karaokeSender from './schedule/karaokeSender.js';
+import dailyNewsSender from './schedule/dailyNewsSender.js';
 import { cleanupExpiredSessions } from './utils/sessionManager.js';
 import { cleanupConversations } from './utils/conversationManager.js';
+import {
+    deleteOldCommandExecutionLogs,
+    deleteOldSchedulerRunLogs,
+    ensureSchedulerJob,
+    listSchedulerJobs,
+    recordSchedulerRun,
+    updateSchedulerJob,
+} from './storage/appStore.js';
+
+const SCHEDULER_LABEL = `Scheduler:${runtimeLabel('scheduler')}`;
+
+function createJobDefinitions(client) {
+    return [
+        {
+            jobId: 'karaoke_sender',
+            handlerKey: 'karaoke_sender',
+            cronExpression: karaokeSender.CRON_EXPRESSION,
+            timezone: 'Asia/Seoul',
+            enabled: true,
+            run: () => karaokeSender.sendKaraokeImages(client),
+        },
+        {
+            jobId: 'daily_news_sender',
+            handlerKey: 'daily_news_sender',
+            cronExpression: dailyNewsSender.CRON_EXPRESSION,
+            timezone: 'Asia/Seoul',
+            enabled: false,
+            run: () => dailyNewsSender.sendNews(client),
+        },
+        {
+            jobId: 'gemini_session_cleanup',
+            handlerKey: 'cleanup_expired_sessions',
+            cronExpression: '0 * * * *',
+            timezone: 'Asia/Seoul',
+            enabled: true,
+            run: () => cleanupExpiredSessions(),
+        },
+        {
+            jobId: 'gemini_conversation_cleanup',
+            handlerKey: 'cleanup_conversations',
+            cronExpression: '0 * * * *',
+            timezone: 'Asia/Seoul',
+            enabled: true,
+            run: () => cleanupConversations(),
+        },
+        {
+            jobId: 'retention_cleanup',
+            handlerKey: 'retention_cleanup',
+            cronExpression: '10 3 * * *',
+            timezone: 'Asia/Seoul',
+            enabled: true,
+            run: () => {
+                const commandLogs = deleteOldCommandExecutionLogs();
+                const schedulerLogs = deleteOldSchedulerRunLogs();
+                logger.info(`[${SCHEDULER_LABEL}] Retention cleanup deleted commandLogs=${commandLogs}, schedulerLogs=${schedulerLogs}`);
+            },
+        },
+        {
+            jobId: 'splatoon_schedule',
+            handlerKey: 'splatoon_schedule',
+            cronExpression: splatoonTask.CRON_EXPRESSION,
+            timezone: 'Asia/Seoul',
+            enabled: true,
+            run: () => splatoonTask.sendSplatoonSchedule(client),
+            runOnStart: true,
+        },
+    ];
+}
+
+function createController(client) {
+    const definitions = createJobDefinitions(client);
+    const definitionById = new Map(definitions.map((job) => [job.jobId, job]));
+    const tasks = new Map();
+    const inProgress = new Set();
+
+    async function runJob(jobId, trigger = 'manual') {
+        const definition = definitionById.get(jobId);
+        if (!definition) {
+            throw new Error(`Unknown scheduler job: ${jobId}`);
+        }
+
+        if (inProgress.has(jobId)) {
+            logger.warn(`[${SCHEDULER_LABEL}] ${jobId} skipped because a previous run is still in progress`);
+            return { skipped: true };
+        }
+
+        const startedAt = Date.now();
+        inProgress.add(jobId);
+        logger.info(`[${SCHEDULER_LABEL}] ${jobId} tick (${trigger})`);
+
+        try {
+            await definition.run();
+            const durationMs = Date.now() - startedAt;
+            recordSchedulerRun(jobId, 'success', durationMs);
+            return { skipped: false, status: 'success', durationMs };
+        } catch (error) {
+            const durationMs = Date.now() - startedAt;
+            logger.error(`[${SCHEDULER_LABEL}] ${jobId} failed:`, error);
+            recordSchedulerRun(jobId, 'error', durationMs, error.message);
+            return { skipped: false, status: 'error', durationMs, error: error.message };
+        } finally {
+            inProgress.delete(jobId);
+        }
+    }
+
+    function stopAll() {
+        for (const task of tasks.values()) {
+            task.stop();
+        }
+        tasks.clear();
+    }
+
+    function startAll() {
+        stopAll();
+
+        for (const definition of definitions) {
+            ensureSchedulerJob(definition);
+        }
+
+        for (const job of listSchedulerJobs()) {
+            const definition = definitionById.get(job.jobId);
+            if (!definition || !job.enabled) continue;
+
+            if (!cron.validate(job.cronExpression)) {
+                logger.error(`[${SCHEDULER_LABEL}] ${job.jobId} CRON invalid: ${job.cronExpression}`);
+                continue;
+            }
+
+            logger.info(`[${SCHEDULER_LABEL}] ${job.jobId} scheduled '${job.cronExpression}' (${job.timezone})`);
+            const task = cron.schedule(
+                job.cronExpression,
+                () => runJob(job.jobId, 'cron'),
+                { scheduled: true, timezone: job.timezone },
+            );
+            tasks.set(job.jobId, task);
+
+            if (definition.runOnStart) {
+                runJob(job.jobId, 'startup');
+            }
+        }
+    }
+
+    function updateJob(jobId, patch) {
+        if (patch.cronExpression && !cron.validate(patch.cronExpression)) {
+            throw new Error(`Invalid cron expression: ${patch.cronExpression}`);
+        }
+
+        const updated = updateSchedulerJob(jobId, patch);
+        if (!updated) {
+            throw new Error(`Unknown scheduler job: ${jobId}`);
+        }
+
+        startAll();
+        return updated;
+    }
+
+    function getJobs() {
+        return listSchedulerJobs().map((job) => ({
+            ...job,
+            running: inProgress.has(job.jobId),
+            active: tasks.has(job.jobId),
+        }));
+    }
+
+    return {
+        startAll,
+        stopAll,
+        runJob,
+        updateJob,
+        getJobs,
+    };
+}
 
 function initScheduler(client) {
-  // karaoke image task
-  if (karaokeSender?.CRON_EXPRESSION && karaokeSender?.sendKaraokeImages) {
-    if (!cron.validate(karaokeSender.CRON_EXPRESSION)) {
-      logger.error(`[Scheduler] karaokeSender CRON invalid: ${karaokeSender.CRON_EXPRESSION}`);
-    } else {
-      logger.info(`[Scheduler] karaokeSender scheduled '${karaokeSender.CRON_EXPRESSION}' (Asia/Seoul)`);
-      cron.schedule(karaokeSender.CRON_EXPRESSION, () => {
-        logger.info(`[Scheduler] karaokeSender tick: ${new Date().toLocaleString()}`);
-        karaokeSender.sendKaraokeImages(client);
-      }, { scheduled: true, timezone: 'Asia/Seoul' });
-    }
-  }
-
-  // Gemini session cleanup task - 매 1시간마다 만료된 세션 정리
-  const SESSION_CLEANUP_CRON = '0 * * * *'; // 매시 정각에 실행
-  logger.info(`[Scheduler] Gemini Session Cleanup scheduled '${SESSION_CLEANUP_CRON}' (Asia/Seoul)`);
-  cron.schedule(SESSION_CLEANUP_CRON, async () => {
-    logger.info(`[Scheduler] Gemini Session Cleanup tick: ${new Date().toLocaleString()}`);
-    await cleanupExpiredSessions();
-  }, { scheduled: true, timezone: 'Asia/Seoul' });
-
-  // Gemini conversation cleanup task - 매 1시간마다 만료된 대화 정리
-  const CONVERSATION_CLEANUP_CRON = '0 * * * *'; // 매시 정각에 실행
-  logger.info(`[Scheduler] Gemini Conversation Cleanup scheduled '${CONVERSATION_CLEANUP_CRON}' (Asia/Seoul)`);
-  cron.schedule(CONVERSATION_CLEANUP_CRON, async () => {
-    logger.info(`[Scheduler] Gemini Conversation Cleanup tick: ${new Date().toLocaleString()}`);
-    await cleanupConversations();
-  }, { scheduled: true, timezone: 'Asia/Seoul' });
-
-  // Splatoon task
-  if (splatoonTask?.CRON_EXPRESSION && splatoonTask?.sendSplatoonSchedule) {
-    if (!cron.validate(splatoonTask.CRON_EXPRESSION)) {
-      logger.error(`[Scheduler] SplatoonTask CRON invalid: ${splatoonTask.CRON_EXPRESSION}`);
-    } else {
-      logger.info(`[Scheduler] SplatoonTask scheduled '${splatoonTask.CRON_EXPRESSION}' (Asia/Seoul)`);
-      splatoonTask.sendSplatoonSchedule(client);
-      cron.schedule(splatoonTask.CRON_EXPRESSION, () => {
-        logger.info(`[Scheduler] SplatoonTask tick: ${new Date().toLocaleString()}`);
-        splatoonTask.sendSplatoonSchedule(client);
-      }, { scheduled: true, timezone: 'Asia/Seoul' });
-    }
-  }
+    const controller = createController(client);
+    logger.info(`[${SCHEDULER_LABEL}] scheduler runtime starting`);
+    controller.startAll();
+    return controller;
 }
 
 export default { initScheduler };

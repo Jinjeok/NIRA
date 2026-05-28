@@ -1,20 +1,36 @@
 import winston from 'winston';
 const { combine, timestamp, printf, colorize } = winston.format;
-import path from 'node:path'; // path 모듈 추가
-import 'winston-daily-rotate-file'; // DailyRotateFile 트랜스포트 추가
-import fs from 'node:fs'; // fs 모듈 추가
+import path from 'node:path';
+import 'winston-daily-rotate-file';
+import fs from 'node:fs';
 
-// 로그 파일을 저장할 폴더 경로
 const logDir = 'logs';
-
-// 로그 폴더가 없으면 생성
 if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir);
 }
 
 const logFormat = printf(({ level, message, timestamp }) => {
-    return `${timestamp} [${level.toUpperCase()}]: ${message}`; // 레벨 대문자로 표시
+    return `${timestamp} [${level.toUpperCase()}]: ${message}`;
 });
+
+const LOG_BUFFER_SIZE = 500;
+const logBuffer = [];
+const MESSAGE = Symbol.for('message');
+
+class MemoryTransport extends winston.Transport {
+    log(info, callback) {
+        logBuffer.push({
+            level: info.level,
+            text: info[MESSAGE] || `${info.timestamp || ''} [${(info.level || '').toUpperCase()}]: ${info.message || ''}`,
+        });
+        if (logBuffer.length > LOG_BUFFER_SIZE) logBuffer.shift();
+        setImmediate(callback);
+    }
+}
+
+export function getRecentLogs({ limit = 200 } = {}) {
+    return logBuffer.slice(-Math.min(limit, logBuffer.length)).reverse();
+}
 
 const logger = winston.createLogger({
     level: 'info',
@@ -41,7 +57,6 @@ const logger = winston.createLogger({
             maxSize: '20m',      // 개별 파일 최대 크기
             maxFiles: '7d',      // 7일간 보관 후 자동 삭제
         }),
-        // 모든 레벨 로그 파일 (매일 로테이션, 7일 보관)
         new winston.transports.DailyRotateFile({
             filename: path.join(logDir, 'combined-%DATE%.log'),
             datePattern: 'YYYY-MM-DD',
@@ -49,6 +64,7 @@ const logger = winston.createLogger({
             maxSize: '20m',
             maxFiles: '7d',
         }),
+        new MemoryTransport({ level: 'info' }),
     ],
 });
 

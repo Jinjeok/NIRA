@@ -2,7 +2,7 @@ import 'dotenv/config';
 import crypto from 'node:crypto';
 import http from 'node:http';
 import { URL, pathToFileURL } from 'node:url';
-import logger from '../logger.js';
+import logger, { getRecentLogs } from '../logger.js';
 import { RUNTIME_CODENAMES, runtimeLabel } from '../runtime/codenames.js';
 import {
     banAdminIp,
@@ -405,6 +405,11 @@ function adminPage(user) {
     .tag-channel { background: #dcfce7; color: #15803d; }
     .tag-internal { background: #f3f4f6; color: #6b7280; }
     .sched-actions { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; }
+    .log-viewer { max-height: 480px; overflow-y: auto; padding: 10px 14px; font-family: ui-monospace, monospace; font-size: 12px; background: #0d1117; border-radius: 0 0 8px 8px; }
+    .log-line { padding: 1px 0; white-space: pre-wrap; word-break: break-all; color: #8b949e; }
+    .log-line.log-error { color: #f85149; }
+    .log-line.log-warn { color: #e3b341; }
+    .log-line.log-info { color: #c9d1d9; }
     @media (max-width: 820px) { header { align-items: flex-start; flex-direction: column; } main { padding: 14px; } .summary { grid-template-columns: 1fr 1fr; } table { min-width: 920px; } section { overflow-x: auto; } }
   </style>
 </head>
@@ -422,6 +427,7 @@ function adminPage(user) {
       <button class="tab active" data-view="commands">명령어</button>
       <button class="tab" data-view="schedules">스케줄러</button>
       <button class="tab" data-view="logs">실행 기록</button>
+      <button class="tab" data-view="applogs">앱 로그</button>
       <button class="tab" data-view="security">보안</button>
       <button class="tab" data-view="settings">설정</button>
     </div>
@@ -429,6 +435,7 @@ function adminPage(user) {
     <div id="commands" class="view"></div>
     <div id="schedules" class="view hidden"></div>
     <div id="logs" class="view hidden"></div>
+    <div id="applogs" class="view hidden"></div>
     <div id="security" class="view hidden"></div>
     <div id="settings" class="view hidden"></div>
   </main>
@@ -510,16 +517,24 @@ function adminPage(user) {
         '<tr><td>밴 제외 IP</td><td class="muted">' + esc((state.data.health.authWhitelistIps || []).join(', ') || '-') + '</td></tr>' +
         '<tr><td></td><td><button id="save-settings" class="primary">저장</button></td></tr></tbody></table></section>';
     }
+    function renderAppLogs() {
+      const logs = state.data.appLogs || [];
+      const lines = logs.map(log => {
+        const cls = log.level === 'error' ? 'log-error' : log.level === 'warn' ? 'log-warn' : 'log-info';
+        return '<div class="log-line ' + cls + '">' + esc(log.text) + '</div>';
+      }).join('');
+      document.querySelector('#applogs').innerHTML = '<section><h2>앱 로그 <span class="muted" style="font-weight:400;font-size:12px">최근 ' + logs.length + '건</span></h2><div class="log-viewer">' + (lines || '<div style="padding:8px;color:#8b949e">로그 없음</div>') + '</div></section>';
+    }
     function render() {
-      renderSummary(); renderCommands(); renderSchedules(); renderLogs(); renderSecurity(); renderSettings();
+      renderSummary(); renderCommands(); renderSchedules(); renderLogs(); renderAppLogs(); renderSecurity(); renderSettings();
       document.querySelectorAll('.view').forEach((node) => node.classList.toggle('hidden', node.id !== state.view));
       document.querySelectorAll('.tab').forEach((node) => node.classList.toggle('active', node.dataset.view === state.view));
     }
     async function load() {
-      const [health, commands, commandLogs, schedules, schedulerLogs, settings, authLogs, ipBans] = await Promise.all([
-        api('/api/health'), api('/api/commands'), api('/api/command-logs?limit=100'), api('/api/schedules'), api('/api/scheduler-logs?limit=100'), api('/api/settings'), api('/api/admin-auth-logs?limit=100'), api('/api/admin-ip-bans?limit=100')
+      const [health, commands, commandLogs, schedules, schedulerLogs, settings, authLogs, ipBans, appLogs] = await Promise.all([
+        api('/api/health'), api('/api/commands'), api('/api/command-logs?limit=100'), api('/api/schedules'), api('/api/scheduler-logs?limit=100'), api('/api/settings'), api('/api/admin-auth-logs?limit=100'), api('/api/admin-ip-bans?limit=100'), api('/api/logs?limit=200')
       ]);
-      state.data = { health, commands, commandLogs, schedules, schedulerLogs, settings, authLogs, ipBans };
+      state.data = { health, commands, commandLogs, schedules, schedulerLogs, settings, authLogs, ipBans, appLogs };
       render();
     }
     document.addEventListener('click', async (event) => {
@@ -530,12 +545,14 @@ function adminPage(user) {
       if (target.dataset.command) { await api('/api/commands/' + encodeURIComponent(target.dataset.command), { method: 'PATCH', body: JSON.stringify({ enabled: target.dataset.enabled === 'true' }) }); await load(); }
       if (target.matches('.admin-only')) { await api('/api/commands/' + encodeURIComponent(target.dataset.command), { method: 'PATCH', body: JSON.stringify({ adminOnly: target.checked }) }); await load(); }
       if (target.dataset.saveJob) {
-        const jobId = target.dataset.saveJob;
-        const patch = { cronExpression: document.querySelector('[data-job="' + CSS.escape(jobId) + '"]').value, timezone: document.querySelector('[data-job-tz="' + CSS.escape(jobId) + '"]').value };
-        const webhookInput = document.querySelector('[data-job-webhook="' + CSS.escape(jobId) + '"]');
-        if (webhookInput) patch.webhookUrl = webhookInput.value;
-        await api('/api/schedules/' + encodeURIComponent(jobId), { method: 'PATCH', body: JSON.stringify(patch) });
-        await load();
+        try {
+          const jobId = target.dataset.saveJob;
+          const patch = { cronExpression: document.querySelector('[data-job="' + CSS.escape(jobId) + '"]').value, timezone: document.querySelector('[data-job-tz="' + CSS.escape(jobId) + '"]').value };
+          const webhookInput = document.querySelector('[data-job-webhook="' + CSS.escape(jobId) + '"]');
+          if (webhookInput) patch.webhookUrl = webhookInput.value;
+          await api('/api/schedules/' + encodeURIComponent(jobId), { method: 'PATCH', body: JSON.stringify(patch) });
+          await load();
+        } catch (err) { alert('저장 실패: ' + err.message); }
       }
       if (target.dataset.toggleJob) { await api('/api/schedules/' + encodeURIComponent(target.dataset.toggleJob), { method: 'PATCH', body: JSON.stringify({ enabled: target.dataset.enabled === 'true' }) }); await load(); }
       if (target.dataset.runJob) { await api('/api/schedules/' + encodeURIComponent(target.dataset.runJob) + '/run', { method: 'POST' }); await load(); }
@@ -737,14 +754,26 @@ async function handleApi(req, res, url, runtime, session) {
         return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/logs') {
+        const limit = Number(url.searchParams.get('limit') || 200);
+        sendJson(res, 200, getRecentLogs({ limit }));
+        return;
+    }
+
     const scheduleMatch = url.pathname.match(/^\/api\/schedules\/([^/]+)$/);
     if (req.method === 'PATCH' && scheduleMatch) {
-        const body = await readJson(req);
-        const jobId = decodeURIComponent(scheduleMatch[1]);
-        const updated = runtime?.scheduler?.updateJob
-            ? runtime.scheduler.updateJob(jobId, body)
-            : updateSchedulerJob(jobId, body);
-        sendJson(res, 200, updated);
+        try {
+            const body = await readJson(req);
+            const jobId = decodeURIComponent(scheduleMatch[1]);
+            logger.info(`[Admin] PATCH schedule ${jobId} ${JSON.stringify(body)}`);
+            const updated = runtime?.scheduler?.updateJob
+                ? runtime.scheduler.updateJob(jobId, body)
+                : updateSchedulerJob(jobId, body);
+            sendJson(res, 200, updated);
+        } catch (err) {
+            logger.error(`[Admin] PATCH schedule 실패: ${err.message}`);
+            sendJson(res, 400, { error: err.message });
+        }
         return;
     }
 

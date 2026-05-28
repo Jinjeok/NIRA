@@ -1,5 +1,5 @@
 // src/commands/선택.js
-import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from '../discord.js';
 import logger from '../logger.js'; // logger 모듈을 가져옵니다.
 
 export default {

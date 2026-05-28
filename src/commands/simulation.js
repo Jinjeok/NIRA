@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import _ from 'lodash';
-import { EmbedBuilder, MessageFlags } from 'discord.js';
+import { EmbedBuilder, MessageFlags } from '../discord.js';
 
 /**
  * 숫자의 실제 소수점 이하 자릿수를 계산합니다. 지수 표기법을 고려합니다.

@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder } from '../discord.js';
 import moment from 'moment';
 
 // Helper function to get information about the day, including Nth Sunday if applicable.

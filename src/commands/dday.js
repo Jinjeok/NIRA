@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import moment from 'moment';
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder } from '../discord.js';
 import 'moment/locale/ko.js';
 
 export default {

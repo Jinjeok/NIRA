@@ -1,5 +1,5 @@
 // karaokeSender.js
-import { WebhookClient } from 'discord.js';
+import { WebhookClient } from '../discord.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Parser from 'rss-parser';
@@ -10,7 +10,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const SEND_MODE = "webhook";
-const WEBHOOK_URL = process.env.KARAOKE_WEBHOOK_URL;
 const CHANNEL_ID = "YOUR_TARGET_CHANNEL_ID_FOR_DAILY_NEWS";
 const RSS_URL = 'https://planet.moe/@karaoke_jpop.rss';
 const CRON_EXPRESSION = '0 9 * * *';
@@ -57,7 +56,7 @@ async function getRecentKaraokeEmbeds() {
   }
 }
 
-async function sendKaraokeImages(client) {
+async function sendKaraokeImages(client, webhookUrl) {
   logger.info(`[KaraokeSender] RSS 이미지 전송 시작 (모드: ${SEND_MODE})...`);
   const embeds = await getRecentKaraokeEmbeds();
 
@@ -68,11 +67,11 @@ async function sendKaraokeImages(client) {
 
   try {
     if (SEND_MODE === 'webhook') {
-      if (!WEBHOOK_URL) {
+      if (!webhookUrl) {
         logger.error('[KaraokeSender] Webhook URL이 설정되지 않았습니다.');
         return;
       }
-      const webhook = new WebhookClient({ url: WEBHOOK_URL });
+      const webhook = new WebhookClient({ url: webhookUrl });
       await webhook.send({ embeds });
       logger.info(`[KaraokeSender] Webhook으로 이미지 ${embeds.length}개 전송 완료.`);
     } else if (SEND_MODE === 'channel') {

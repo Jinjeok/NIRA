@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } from '../discord.js';
 import logger from '../logger.js';
 import { checkLimit, incrementUsage, getLimits } from '../utils/usageManager.js';
 import { saveConversation, loadConversation } from '../utils/conversationManager.js';

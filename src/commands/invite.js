@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } from '../discord.js';
 
 // NIRA 봇의 모든 현재 기능을 위한 고정 권한 세트
 const NIRA_REQUIRED_PERMISSIONS = [

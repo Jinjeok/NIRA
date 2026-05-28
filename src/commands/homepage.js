@@ -1,7 +1,7 @@
 // ./commands/명령어.js
 
 import { SlashCommandBuilder } from '@discordjs/builders';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from '../discord.js';
 
 export default {
   data: new SlashCommandBuilder()

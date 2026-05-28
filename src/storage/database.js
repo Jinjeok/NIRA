@@ -104,6 +104,17 @@ function migrate(database) {
             ON scheduler_run_logs(created_at);
         CREATE INDEX IF NOT EXISTS idx_scheduler_run_logs_job_id
             ON scheduler_run_logs(job_id);
+    `);
+
+    // Additive column migrations (safe to run repeatedly)
+    for (const sql of [
+        `ALTER TABLE scheduler_jobs ADD COLUMN webhook_url TEXT`,
+        `ALTER TABLE scheduler_jobs ADD COLUMN target_type TEXT`,
+    ]) {
+        try { database.exec(sql); } catch { /* column already exists */ }
+    }
+
+    database.exec(`
 
         CREATE TABLE IF NOT EXISTS admin_auth_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -359,10 +359,12 @@ export function ensureSchedulerJob(job) {
     getDatabase()
         .prepare(`
             INSERT INTO scheduler_jobs (
-                job_id, handler_key, cron_expression, timezone, enabled, updated_at
+                job_id, handler_key, cron_expression, timezone, enabled, webhook_url, target_type, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(job_id) DO NOTHING
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(job_id) DO UPDATE SET
+                target_type = COALESCE(scheduler_jobs.target_type, excluded.target_type),
+                webhook_url = COALESCE(scheduler_jobs.webhook_url, excluded.webhook_url)
         `)
         .run(
             job.jobId,
@@ -370,6 +372,8 @@ export function ensureSchedulerJob(job) {
             job.cronExpression,
             job.timezone || 'Asia/Seoul',
             job.enabled === false ? 0 : 1,
+            job.webhookUrl || null,
+            job.targetType || 'internal',
             nowIso(),
         );
 }
@@ -384,6 +388,8 @@ export function listSchedulerJobs() {
             cronExpression: row.cron_expression,
             timezone: row.timezone,
             enabled: toBoolean(row.enabled),
+            webhookUrl: row.webhook_url || null,
+            targetType: row.target_type || 'internal',
             lastRunAt: row.last_run_at,
             lastStatus: row.last_status,
             lastError: row.last_error,
@@ -405,15 +411,16 @@ export function updateSchedulerJob(jobId, patch) {
         cronExpression: patch.cronExpression ?? current.cronExpression,
         timezone: patch.timezone ?? current.timezone,
         enabled: patch.enabled == null ? current.enabled : Boolean(patch.enabled),
+        webhookUrl: patch.webhookUrl === undefined ? current.webhookUrl : (patch.webhookUrl || null),
     };
 
     getDatabase()
         .prepare(`
             UPDATE scheduler_jobs
-            SET cron_expression = ?, timezone = ?, enabled = ?, updated_at = ?
+            SET cron_expression = ?, timezone = ?, enabled = ?, webhook_url = ?, updated_at = ?
             WHERE job_id = ?
         `)
-        .run(next.cronExpression, next.timezone, next.enabled ? 1 : 0, nowIso(), jobId);
+        .run(next.cronExpression, next.timezone, next.enabled ? 1 : 0, next.webhookUrl, nowIso(), jobId);
 
     return getSchedulerJob(jobId);
 }

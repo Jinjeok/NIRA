@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
-import { EmbedBuilder, MessageFlags } from 'discord.js';
+import { EmbedBuilder, MessageFlags } from '../discord.js';
 import axios from 'axios';
 
 // 셀프호스트: DELIVERY_TRACKER_URL (기본값 http://localhost:4000/)

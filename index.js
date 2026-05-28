@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Collection, ActivityType, MessageFlags } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, ActivityType, MessageFlags } from './src/discord.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

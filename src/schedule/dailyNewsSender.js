@@ -1,4 +1,4 @@
-import { WebhookClient } from 'discord.js';
+import { WebhookClient } from '../discord.js';
 import { getMessageId as getStoredMessageId, setMessageId as setStoredMessageId } from '../utils/messageIdStore.js';
 import logger from '../logger.js';
 import { fetchNewsEmbed } from '../commands/newsletter.js'; // newsletter.js 에서 함수 가져오기
@@ -6,7 +6,6 @@ import { fetchNewsEmbed } from '../commands/newsletter.js'; // newsletter.js 에
 // --- Daily News Sender Configuration ---
 // 이 섹션에서 이 스케줄 작업에 대한 설정을 직접 관리합니다.
 const SEND_MODE = "webhook"; // "webhook" 또는 "channel"
-const WEBHOOK_URL = process.env.DAILYNEWS_WEBHOOK_URL; // .env 파일에서 웹훅 URL을 읽어옵니다.
 const CHANNEL_ID = "YOUR_TARGET_CHANNEL_ID_FOR_DAILY_NEWS"; // 채널 모드일 경우 사용 (필요시 .env로 이동 가능)
 const NEWS_CATEGORY = '헤드라인'; // 전송할 뉴스 카테고리
 const CRON_EXPRESSION = '0 9 * * *'; // 매일 오전 9시 (이 작업의 실행 주기)
@@ -20,7 +19,7 @@ async function setMessageId(id, key = 'dailyNews') {
     await setStoredMessageId(key, id);
 }
 
-async function sendNews(client) {
+async function sendNews(client, webhookUrl) {
     logger.info(`[DailyNewsSender] '${NEWS_CATEGORY}' 뉴스 전송 작업 시작 (모드: ${SEND_MODE})...`);
     const newsEmbed = await fetchNewsEmbed(NEWS_CATEGORY);
 
@@ -31,11 +30,11 @@ async function sendNews(client) {
     
     try {
         if (SEND_MODE === 'webhook') {
-            if (!WEBHOOK_URL) {
-                logger.error('[DailyNewsSender] Webhook 모드이지만 DAILYNEWS_WEBHOOK_URL 환경 변수가 설정되지 않았거나 유효하지 않습니다. 웹훅 전송을 건너<0xEB><0x9B><0x84>니다.');
+            if (!webhookUrl) {
+                logger.error('[DailyNewsSender] 웹훅 URL이 설정되지 않았습니다. 어드민 페이지에서 설정해주세요.');
                 return;
             }
-            const webhook = new WebhookClient({ url: WEBHOOK_URL });
+            const webhook = new WebhookClient({ url: webhookUrl });
             await webhook.send({ embeds: [newsEmbed] });
             logger.info(`[DailyNewsSender] Webhook으로 '${NEWS_CATEGORY}' 뉴스 전송 완료.`);
         } else if (SEND_MODE === 'channel') {

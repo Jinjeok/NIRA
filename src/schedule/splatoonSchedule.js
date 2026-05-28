@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getMessageId as getStoredMessageId, setMessageId as setStoredMessageId } from '../utils/messageIdStore.js';
-import { EmbedBuilder } from 'discord.js'; // WebhookClient는 사용하지 않으므로 제거
+import { EmbedBuilder } from '../discord.js'; // WebhookClient는 사용하지 않으므로 제거
 import logger from '../logger.js'; // .js 확장자 추가 및 import로 변경
 // --- Splatoon Schedule Configuration ---
 // SEND_MODE는 "channel"로 고정됩니다.

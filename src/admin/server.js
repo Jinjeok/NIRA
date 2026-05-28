@@ -395,9 +395,16 @@ function adminPage(user) {
     .failure_whitelisted { color: var(--warn); font-weight: 700; }
     .blocked { color: var(--warn); font-weight: 700; }
     .muted { color: var(--muted); }
-    .cron-input { width: 190px; }
+    .cron-input { width: 160px; }
+    .tz-input { width: 120px; }
+    .webhook-input { width: 100%; min-width: 180px; margin-top: 6px; }
     .number-input { width: 86px; }
     .hidden { display: none; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-top: 4px; }
+    .tag-webhook { background: #e0f2fe; color: #0369a1; }
+    .tag-channel { background: #dcfce7; color: #15803d; }
+    .tag-internal { background: #f3f4f6; color: #6b7280; }
+    .sched-actions { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; }
     @media (max-width: 820px) { header { align-items: flex-start; flex-direction: column; } main { padding: 14px; } .summary { grid-template-columns: 1fr 1fr; } table { min-width: 920px; } section { overflow-x: auto; } }
   </style>
 </head>
@@ -460,14 +467,27 @@ function adminPage(user) {
       document.querySelector('#commands').innerHTML = '<section><h2>명령어 관리</h2><table><thead><tr><th>명령어</th><th>상태</th><th>실행</th><th>성공/실패</th><th>평균 ms</th><th>작업</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
     }
     function renderSchedules() {
-      const rows = (state.data.schedules || []).map((job) => '<tr>' +
-        '<td><code>' + esc(job.jobId) + '</code><div class="muted">' + esc(job.handlerKey) + '</div></td>' +
-        '<td class="' + (job.enabled ? 'enabled' : 'disabled') + '">' + (job.enabled ? '활성' : '비활성') + (job.running ? ' / 실행중' : '') + '</td>' +
-        '<td><input class="cron-input" data-job="' + esc(job.jobId) + '" value="' + esc(job.cronExpression) + '"></td>' +
-        '<td><input data-job-tz="' + esc(job.jobId) + '" value="' + esc(job.timezone) + '"></td>' +
-        '<td class="' + esc(job.lastStatus || '') + '">' + esc(job.lastStatus || '-') + '<div class="muted">' + esc(job.lastRunAt || '') + '</div></td>' +
-        '<td><div class="row-actions"><button data-save-job="' + esc(job.jobId) + '">저장</button><button data-toggle-job="' + esc(job.jobId) + '" data-enabled="' + (!job.enabled) + '">' + (job.enabled ? '끄기' : '켜기') + '</button><button data-run-job="' + esc(job.jobId) + '">수동 실행</button></div></td></tr>').join('');
-      document.querySelector('#schedules').innerHTML = '<section><h2>스케줄러 현황</h2><table><thead><tr><th>Job</th><th>상태</th><th>Cron</th><th>Timezone</th><th>최근 결과</th><th>작업</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
+      const typeLabel = { webhook: '웹훅', channel: '채널', internal: '내부' };
+      const rows = (state.data.schedules || []).map((job) => {
+        const type = job.targetType || 'internal';
+        const jobCell = '<td style="min-width:160px">' +
+          '<code style="white-space:nowrap">' + esc(job.jobId) + '</code>' +
+          '<div class="muted" style="white-space:nowrap">' + esc(job.handlerKey) + '</div>' +
+          (type === 'webhook' ? '<input class="webhook-input" data-job-webhook="' + esc(job.jobId) + '" value="' + esc(job.webhookUrl || '') + '" placeholder="https://discord.com/api/webhooks/...">' : '') +
+          '</td>';
+        return '<tr>' +
+          jobCell +
+          '<td style="white-space:nowrap">' +
+            '<span class="' + (job.enabled ? 'enabled' : 'disabled') + '">' + (job.enabled ? '활성' : '비활성') + (job.running ? ' · 실행중' : '') + '</span>' +
+            '<div><span class="tag tag-' + esc(type) + '">' + esc(typeLabel[type] || type) + '</span></div>' +
+          '</td>' +
+          '<td><input class="cron-input" data-job="' + esc(job.jobId) + '" value="' + esc(job.cronExpression) + '"></td>' +
+          '<td><input class="tz-input" data-job-tz="' + esc(job.jobId) + '" value="' + esc(job.timezone) + '"></td>' +
+          '<td class="' + esc(job.lastStatus || '') + '" style="white-space:nowrap">' + esc(job.lastStatus || '-') + '<div class="muted">' + esc(job.lastRunAt || '') + '</div></td>' +
+          '<td><div class="sched-actions"><button data-save-job="' + esc(job.jobId) + '">저장</button><button data-toggle-job="' + esc(job.jobId) + '" data-enabled="' + (!job.enabled) + '">' + (job.enabled ? '끄기' : '켜기') + '</button><button data-run-job="' + esc(job.jobId) + '">실행</button></div></td>' +
+          '</tr>';
+      }).join('');
+      document.querySelector('#schedules').innerHTML = '<section><h2>스케줄러 현황</h2><table style="table-layout:auto"><thead><tr><th>Job / 웹훅 URL</th><th>상태 / 타입</th><th>Cron</th><th>Timezone</th><th>최근 결과</th><th>작업</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
     }
     function renderLogs() {
       const commandRows = (state.data.commandLogs || []).map((log) => '<tr><td>' + esc(log.createdAt) + '</td><td><code>' + esc(log.commandName) + '</code></td><td class="' + esc(log.status) + '">' + esc(log.status) + '</td><td>' + esc(log.durationMs) + '</td><td>' + esc(log.errorMessage || '') + '</td></tr>').join('');
@@ -510,7 +530,10 @@ function adminPage(user) {
       if (target.matches('.admin-only')) { await api('/api/commands/' + encodeURIComponent(target.dataset.command), { method: 'PATCH', body: JSON.stringify({ adminOnly: target.checked }) }); await load(); }
       if (target.dataset.saveJob) {
         const jobId = target.dataset.saveJob;
-        await api('/api/schedules/' + encodeURIComponent(jobId), { method: 'PATCH', body: JSON.stringify({ cronExpression: document.querySelector('[data-job="' + CSS.escape(jobId) + '"]').value, timezone: document.querySelector('[data-job-tz="' + CSS.escape(jobId) + '"]').value }) });
+        const patch = { cronExpression: document.querySelector('[data-job="' + CSS.escape(jobId) + '"]').value, timezone: document.querySelector('[data-job-tz="' + CSS.escape(jobId) + '"]').value };
+        const webhookInput = document.querySelector('[data-job-webhook="' + CSS.escape(jobId) + '"]');
+        if (webhookInput) patch.webhookUrl = webhookInput.value;
+        await api('/api/schedules/' + encodeURIComponent(jobId), { method: 'PATCH', body: JSON.stringify(patch) });
         await load();
       }
       if (target.dataset.toggleJob) { await api('/api/schedules/' + encodeURIComponent(target.dataset.toggleJob), { method: 'PATCH', body: JSON.stringify({ enabled: target.dataset.enabled === 'true' }) }); await load(); }

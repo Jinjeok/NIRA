@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder } from '../discord.js';
 import Parser from 'rss-parser';
 const parser = new Parser();
 import logger from '../logger.js'; // 로거가 있다면 사용

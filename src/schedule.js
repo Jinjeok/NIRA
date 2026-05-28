@@ -4,12 +4,14 @@ import { runtimeLabel } from './runtime/codenames.js';
 import splatoonTask from './schedule/splatoonSchedule.js';
 import karaokeSender from './schedule/karaokeSender.js';
 import dailyNewsSender from './schedule/dailyNewsSender.js';
+import tenseijingo from './schedule/tenseijingo.js';
 import { cleanupExpiredSessions } from './utils/sessionManager.js';
 import { cleanupConversations } from './utils/conversationManager.js';
 import {
     deleteOldCommandExecutionLogs,
     deleteOldSchedulerRunLogs,
     ensureSchedulerJob,
+    getSchedulerJob,
     listSchedulerJobs,
     recordSchedulerRun,
     updateSchedulerJob,
@@ -25,7 +27,12 @@ function createJobDefinitions(client) {
             cronExpression: karaokeSender.CRON_EXPRESSION,
             timezone: 'Asia/Seoul',
             enabled: true,
-            run: () => karaokeSender.sendKaraokeImages(client),
+            targetType: 'webhook',
+            webhookUrl: process.env.KARAOKE_WEBHOOK_URL || null,
+            run: () => {
+                const job = getSchedulerJob('karaoke_sender');
+                return karaokeSender.sendKaraokeImages(client, job?.webhookUrl);
+            },
         },
         {
             jobId: 'daily_news_sender',
@@ -33,7 +40,12 @@ function createJobDefinitions(client) {
             cronExpression: dailyNewsSender.CRON_EXPRESSION,
             timezone: 'Asia/Seoul',
             enabled: false,
-            run: () => dailyNewsSender.sendNews(client),
+            targetType: 'webhook',
+            webhookUrl: process.env.DAILYNEWS_WEBHOOK_URL || null,
+            run: () => {
+                const job = getSchedulerJob('daily_news_sender');
+                return dailyNewsSender.sendNews(client, job?.webhookUrl);
+            },
         },
         {
             jobId: 'gemini_session_cleanup',
@@ -41,6 +53,7 @@ function createJobDefinitions(client) {
             cronExpression: '0 * * * *',
             timezone: 'Asia/Seoul',
             enabled: true,
+            targetType: 'internal',
             run: () => cleanupExpiredSessions(),
         },
         {
@@ -49,6 +62,7 @@ function createJobDefinitions(client) {
             cronExpression: '0 * * * *',
             timezone: 'Asia/Seoul',
             enabled: true,
+            targetType: 'internal',
             run: () => cleanupConversations(),
         },
         {
@@ -57,6 +71,7 @@ function createJobDefinitions(client) {
             cronExpression: '10 3 * * *',
             timezone: 'Asia/Seoul',
             enabled: true,
+            targetType: 'internal',
             run: () => {
                 const commandLogs = deleteOldCommandExecutionLogs();
                 const schedulerLogs = deleteOldSchedulerRunLogs();
@@ -69,8 +84,22 @@ function createJobDefinitions(client) {
             cronExpression: splatoonTask.CRON_EXPRESSION,
             timezone: 'Asia/Seoul',
             enabled: true,
+            targetType: 'channel',
             run: () => splatoonTask.sendSplatoonSchedule(client),
             runOnStart: true,
+        },
+        {
+            jobId: 'tenseijingo',
+            handlerKey: 'tenseijingo',
+            cronExpression: tenseijingo.CRON_EXPRESSION,
+            timezone: 'Asia/Seoul',
+            enabled: true,
+            targetType: 'webhook',
+            webhookUrl: process.env.TENSEIJINGO_WEBHOOK_URL || null,
+            run: (trigger) => {
+                const job = getSchedulerJob('tenseijingo');
+                return tenseijingo.sendTenseijingo(client, job?.webhookUrl, trigger === 'admin');
+            },
         },
     ];
 }
@@ -97,7 +126,7 @@ function createController(client) {
         logger.info(`[${SCHEDULER_LABEL}] ${jobId} tick (${trigger})`);
 
         try {
-            await definition.run();
+            await definition.run(trigger);
             const durationMs = Date.now() - startedAt;
             recordSchedulerRun(jobId, 'success', durationMs);
             return { skipped: false, status: 'success', durationMs };

@@ -474,6 +474,7 @@ function adminPage(user) {
           '<code style="white-space:nowrap">' + esc(job.jobId) + '</code>' +
           '<div class="muted" style="white-space:nowrap">' + esc(job.handlerKey) + '</div>' +
           (type === 'webhook' ? '<input class="webhook-input" data-job-webhook="' + esc(job.jobId) + '" value="' + esc(job.webhookUrl || '') + '" placeholder="https://discord.com/api/webhooks/...">' : '') +
+          (type === 'channel' ? '<input class="webhook-input" data-job-webhook="' + esc(job.jobId) + '" value="' + esc(job.webhookUrl || '') + '" placeholder="채널 ID">' : '') +
           '</td>';
         return '<tr>' +
           jobCell +

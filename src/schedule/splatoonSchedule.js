@@ -5,7 +5,6 @@ import logger from '../logger.js'; // .js 확장자 추가 및 import로 변경
 // --- Splatoon Schedule Configuration ---
 // SEND_MODE는 "channel"로 고정됩니다.
 // WEBHOOK_URL은 더 이상 사용되지 않습니다.
-const TARGET_CHANNEL_ID = process.env.SPLATOON_SCHEDULE_CHANNEL_ID; // .env 파일에서 채널 ID를 읽어옵니다.
 //const CRON_EXPRESSION = '* * * * *'; // 매 홀수 시간 1분에 실행
 const CRON_EXPRESSION = '1 1,3,5,7,9,11,13,15,17,19,21,23 * * *'; // 매 홀수 시간 1분에 실행
 // --- End of Configuration ---
@@ -208,13 +207,13 @@ function formatToEmbeds(data) {
 }
 
 
-async function sendSplatoonSchedule(client) {
-    if (!TARGET_CHANNEL_ID) {
-        logger.error('[SplatoonSchedule] SPLATOON_SCHEDULE_CHANNEL_ID 환경 변수가 설정되지 않았습니다. 스케줄을 중단합니다.');
+async function sendSplatoonSchedule(client, channelId) {
+    if (!channelId) {
+        logger.error('[SplatoonSchedule] 채널 ID가 설정되지 않았습니다. 어드민 페이지에서 설정해주세요.');
         return;
     }
 
-    logger.info(`[SplatoonSchedule] 스플래툰 일정 정보 전송 작업 시작 (채널 ID: ${TARGET_CHANNEL_ID})...`);
+    logger.info(`[SplatoonSchedule] 스플래툰 일정 정보 전송 작업 시작 (채널 ID: ${channelId})...`);
     let embedsToSend;
     try {
         const apiData = await getSplatoonData();
@@ -230,31 +229,31 @@ async function sendSplatoonSchedule(client) {
     }
     try {
         // 항상 채널 모드로 동작
-        const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
+        const channel = await client.channels.fetch(channelId);
         if (!channel || !channel.isTextBased()) {
-            logger.error(`[SplatoonSchedule] 설정된 채널 ID ${TARGET_CHANNEL_ID}를 찾을 수 없거나 텍스트 채널이 아닙니다.`);
+            logger.error(`[SplatoonSchedule] 설정된 채널 ID ${channelId}를 찾을 수 없거나 텍스트 채널이 아닙니다.`);
             return;
         }
 
         // 메시지 ID는 채널 ID를 기반으로 한 키를 사용합니다.
-        const messageIdKey = `${MESSAGE_KEY_PREFIX}${TARGET_CHANNEL_ID}`;
+        const messageIdKey = `${MESSAGE_KEY_PREFIX}${channelId}`;
         const messageId = await getMessageId(messageIdKey);
 
         if (messageId) {
             try {
                 const message = await channel.messages.fetch(messageId);
                 await message.edit({ embeds: embedsToSend });
-                logger.info(`[SplatoonSchedule] 채널 ${TARGET_CHANNEL_ID}의 메시지 ${messageId} 수정 완료.`);
+                logger.info(`[SplatoonSchedule] 채널 ${channelId}의 메시지 ${messageId} 수정 완료.`);
             } catch (error) {
                 logger.warn(`[SplatoonSchedule] 메시지 ${messageId} 수정 실패 (아마도 삭제됨), 새 메시지 전송 시도:`, error.message);
                 const newMessage = await channel.send({ embeds: embedsToSend });
                 await setMessageId(newMessage.id, messageIdKey);
-                logger.info(`[SplatoonSchedule] 채널 ${TARGET_CHANNEL_ID}에 새 스플래툰 일정 메시지 전송 완료 (ID: ${newMessage.id}).`);
+                logger.info(`[SplatoonSchedule] 채널 ${channelId}에 새 스플래툰 일정 메시지 전송 완료 (ID: ${newMessage.id}).`);
             }
         } else {
             const newMessage = await channel.send({ embeds: embedsToSend });
             await setMessageId(newMessage.id, messageIdKey);
-            logger.info(`[SplatoonSchedule] 채널 ${TARGET_CHANNEL_ID}에 새 스플래툰 일정 메시지 전송 완료 (ID: ${newMessage.id}).`);
+            logger.info(`[SplatoonSchedule] 채널 ${channelId}에 새 스플래툰 일정 메시지 전송 완료 (ID: ${newMessage.id}).`);
         }
 
      } catch (error) {

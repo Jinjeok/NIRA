@@ -85,7 +85,11 @@ function createJobDefinitions(client) {
             timezone: 'Asia/Seoul',
             enabled: true,
             targetType: 'channel',
-            run: () => splatoonTask.sendSplatoonSchedule(client),
+            webhookUrl: process.env.SPLATOON_SCHEDULE_CHANNEL_ID || null,
+            run: (trigger) => {
+                const job = getSchedulerJob('splatoon_schedule');
+                return splatoonTask.sendSplatoonSchedule(client, job?.webhookUrl);
+            },
             runOnStart: true,
         },
         {

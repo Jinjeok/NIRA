@@ -5,7 +5,8 @@ import { getStateValue, setStateValue } from '../storage/appStore.js';
 import { WebhookClient } from '../discord.js';
 
 const require = createRequire(import.meta.url);
-const Crawler = require('crawler');
+const _crawlerMod = require('crawler');
+const Crawler = _crawlerMod.Crawler || _crawlerMod.default || _crawlerMod;
 
 const CRON_EXPRESSION = '0 7 * * *';
 const BLOG_URL = 'https://blog.naver.com/PostList.naver?blogId=jjy4400&widgetTypeCall=true&noTrackingCode=true&directAccess=true';

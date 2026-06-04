@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
 import http from 'node:http';
-import { URL } from 'node:url';
+import { URL, pathToFileURL } from 'node:url';
 import logger, { getRecentLogs } from '../logger.js';
 import { deployCommands } from '../utils/deployCommands.js';
 import { RUNTIME_CODENAMES, runtimeLabel } from '../runtime/codenames.js';

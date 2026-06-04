@@ -1,8 +1,9 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
 import http from 'node:http';
-import { URL, pathToFileURL } from 'node:url';
+import { URL } from 'node:url';
 import logger, { getRecentLogs } from '../logger.js';
+import { deployCommands } from '../utils/deployCommands.js';
 import { RUNTIME_CODENAMES, runtimeLabel } from '../runtime/codenames.js';
 import {
     banAdminIp,
@@ -471,7 +472,13 @@ function adminPage(user) {
         '<td>' + esc(cmd.executionCount) + '</td><td>' + esc(cmd.successCount) + ' / ' + esc(cmd.errorCount) + '</td><td>' + esc(cmd.avgDurationMs ?? '-') + '</td>' +
         '<td><div class="row-actions"><button data-command="' + esc(cmd.name) + '" data-enabled="' + (!cmd.enabled) + '">' + (cmd.enabled ? '끄기' : '켜기') + '</button>' +
         '<label><input class="admin-only" type="checkbox" data-command="' + esc(cmd.name) + '"' + (cmd.adminOnly ? ' checked' : '') + '> 관리자</label></div></td></tr>').join('');
-      document.querySelector('#commands').innerHTML = '<section><h2>명령어 관리</h2><table><thead><tr><th>명령어</th><th>상태</th><th>실행</th><th>성공/실패</th><th>평균 ms</th><th>작업</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
+      document.querySelector('#commands').innerHTML =
+        '<section><h2>명령어 관리</h2>' +
+        '<div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px">' +
+        '<button id="deploy-commands" class="primary">Discord에 커맨드 배포</button>' +
+        '<span class="muted" style="font-size:13px">활성 커맨드만 Discord에 등록됩니다. 비활성 커맨드는 슬래시 목록에서 제거됩니다.</span>' +
+        '</div>' +
+        '<table><thead><tr><th>명령어</th><th>상태</th><th>실행</th><th>성공/실패</th><th>평균 ms</th><th>작업</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
     }
     function renderSchedules() {
       const typeLabel = { webhook: '웹훅', channel: '채널', internal: '내부' };
@@ -542,6 +549,15 @@ function adminPage(user) {
       if (target.matches('.tab')) { state.view = target.dataset.view; render(); }
       if (target.id === 'refresh') await load();
       if (target.id === 'logout') { await fetch('/auth/logout', { method: 'POST' }); location.href = '/login'; }
+      if (target.id === 'deploy-commands') {
+        try {
+          target.disabled = true; target.textContent = '배포 중...';
+          const result = await api('/api/deploy-commands', { method: 'POST' });
+          alert('배포 완료: ' + result.deployed + '개 커맨드가 Discord에 등록됐습니다.');
+          await load();
+        } catch (err) { alert('배포 실패: ' + err.message); }
+        finally { target.disabled = false; target.textContent = 'Discord에 커맨드 배포'; }
+      }
       if (target.dataset.command) { await api('/api/commands/' + encodeURIComponent(target.dataset.command), { method: 'PATCH', body: JSON.stringify({ enabled: target.dataset.enabled === 'true' }) }); await load(); }
       if (target.matches('.admin-only')) { await api('/api/commands/' + encodeURIComponent(target.dataset.command), { method: 'PATCH', body: JSON.stringify({ adminOnly: target.checked }) }); await load(); }
       if (target.dataset.saveJob) {
@@ -744,6 +760,20 @@ async function handleApi(req, res, url, runtime, session) {
 
     if (req.method === 'GET' && url.pathname === '/api/admin-ip-bans') {
         sendJson(res, 200, listAdminIpBans({ limit: url.searchParams.get('limit') || 100 }));
+        return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/deploy-commands') {
+        try {
+            const settings = listCommandSettings(commandMetadata(runtime));
+            const enabledNames = new Set(settings.filter(s => s.enabled).map(s => s.name));
+            const result = await deployCommands({ enabledNames });
+            logger.info(`[Admin] 커맨드 배포 완료: ${result.deployed}개`);
+            sendJson(res, 200, result);
+        } catch (err) {
+            logger.error(`[Admin] 커맨드 배포 실패: ${err.message}`);
+            sendJson(res, 500, { error: err.message });
+        }
         return;
     }
 

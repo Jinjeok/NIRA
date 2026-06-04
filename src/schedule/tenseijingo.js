@@ -44,7 +44,8 @@ function extractContent($) {
     let body = '';
     for (let i = 0; i < arr.length; i++) {
         if (i !== 0 && arr[i].includes('（天声人語）')) break;
-        if (arr[i].includes('單語')) break;
+        if (/[單单単]語/.test(arr[i])) break;
+        if (arr[i].includes('#天声人語')) break;
         if (arr[i].match(/[ㄱ-ㅎㅏ-ㅣ가-힣]/)) continue;
         body += arr[i] + '\n\n';
     }
@@ -131,8 +132,10 @@ async function sendTenseijingo(client, webhookUrl, testMode = false) {
         let memoLink = null;
         if (!testMode) {
             const memo = await postToMemos(content);
-            memoLink = memo?.uid && process.env.TENSEIJINGO_MEMOS_URL
-                ? `${process.env.TENSEIJINGO_MEMOS_URL}/m/${memo.uid}`
+            logger.info(`[Tenseijingo] Memos 응답 필드: ${Object.keys(memo || {}).join(', ')}`);
+            const memoId = memo?.uid || memo?.name?.split('/').pop();
+            memoLink = memoId && process.env.TENSEIJINGO_MEMOS_URL
+                ? `${process.env.TENSEIJINGO_MEMOS_URL}/m/${memoId}`
                 : null;
         }
 

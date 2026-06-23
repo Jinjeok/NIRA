@@ -29,9 +29,9 @@ function createJobDefinitions(client) {
             enabled: true,
             targetType: 'webhook',
             webhookUrl: process.env.KARAOKE_WEBHOOK_URL || null,
-            run: () => {
+            run: (trigger) => {
                 const job = getSchedulerJob('karaoke_sender');
-                return karaokeSender.sendKaraokeImages(client, job?.webhookUrl);
+                return karaokeSender.sendKaraokeImages(client, job?.webhookUrl, trigger === 'admin');
             },
         },
         {

@@ -8,6 +8,7 @@ const RSS_URL = 'https://planet.moe/@karaoke_jpop.rss';
 const CRON_EXPRESSION = '0 9 * * *';
 const STATE_KEY = 'karaoke_sent_links';
 const MAX_STORED_LINKS = 100;
+const MAX_EMBEDS_PER_MESSAGE = 10;
 
 const parser = new Parser({
     customFields: {
@@ -21,23 +22,37 @@ async function getNewKaraokeEmbeds() {
 
     const newItems = feed.items.filter(item => item.link && !sentLinks.has(item.link));
 
-    const embeds = newItems.map(item => {
+    const parsedItems = newItems.map(item => {
         const media = item['media:content']?.find(m => m.$?.url);
-        if (!media) return null;
+        if (!media) return { link: item.link, embed: null };
+
         return {
-            title: item.title || '🎤 노래방 신곡 알림',
-            image: { url: media.$.url },
-            url: item.link,
-            timestamp: new Date(item.pubDate).toISOString(),
-            color: 0xEE82EE,
-            footer: {
-                icon_url: 'https://media.planet.moe/accounts/avatars/109/797/204/938/216/927/original/4928ee70039d2c7a.jpg',
-                text: '게시일',
+            link: item.link,
+            embed: {
+                title: item.title || '🎤 노래방 신곡 알림',
+                image: { url: media.$.url },
+                url: item.link,
+                timestamp: new Date(item.pubDate).toISOString(),
+                color: 0xEE82EE,
+                footer: {
+                    icon_url: 'https://media.planet.moe/accounts/avatars/109/797/204/938/216/927/original/4928ee70039d2c7a.jpg',
+                    text: '게시일',
+                },
             },
         };
-    }).filter(Boolean);
+    });
+    const entries = parsedItems.filter(item => item.embed);
+    const skippedLinks = parsedItems.filter(item => !item.embed).map(item => item.link);
 
-    return { embeds, newLinks: newItems.map(i => i.link), allLinks: [...feed.items.map(i => i.link).filter(Boolean)] };
+    return { entries, skippedLinks, allLinks: [...feed.items.map(i => i.link).filter(Boolean)] };
+}
+
+function chunkArray(items, size) {
+    const chunks = [];
+    for (let i = 0; i < items.length; i += size) {
+        chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
 }
 
 function updateSentLinks(newLinks) {
@@ -58,9 +73,13 @@ async function sendKaraokeImages(client, webhookUrl) {
         return;
     }
 
-    const { embeds, newLinks } = result;
+    const { entries, skippedLinks } = result;
 
-    if (!embeds.length) {
+    if (!entries.length) {
+        if (skippedLinks.length) {
+            updateSentLinks(skippedLinks);
+            logger.warn(`[KaraokeSender] 이미지가 없는 새 항목 ${skippedLinks.length}개를 전송 없이 처리했습니다.`);
+        }
         logger.info('[KaraokeSender] 전송할 새 이미지가 없습니다.');
         return;
     }
@@ -71,10 +90,22 @@ async function sendKaraokeImages(client, webhookUrl) {
                 logger.error('[KaraokeSender] Webhook URL이 설정되지 않았습니다.');
                 return;
             }
+
             const webhook = new WebhookClient({ url: webhookUrl });
-            await webhook.send({ embeds });
-            updateSentLinks(newLinks);
-            logger.info(`[KaraokeSender] ${embeds.length}개 전송 완료.`);
+            const batches = chunkArray(entries, MAX_EMBEDS_PER_MESSAGE);
+
+            for (const [index, batch] of batches.entries()) {
+                await webhook.send({ embeds: batch.map(entry => entry.embed) });
+                updateSentLinks(batch.map(entry => entry.link));
+                logger.info(`[KaraokeSender] ${batch.length}개 전송 완료 (${index + 1}/${batches.length}).`);
+            }
+
+            if (skippedLinks.length) {
+                updateSentLinks(skippedLinks);
+                logger.warn(`[KaraokeSender] 이미지가 없는 새 항목 ${skippedLinks.length}개를 전송 없이 처리했습니다.`);
+            }
+
+            logger.info(`[KaraokeSender] 총 ${entries.length}개 전송 완료.`);
         } else {
             logger.error(`[KaraokeSender] 지원하지 않는 SEND_MODE: ${SEND_MODE}`);
         }
